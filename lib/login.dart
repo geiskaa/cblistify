@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/pomodoro.dart';
-import 'signin.dart';
+//import 'package:flutter_application_1/pomodoro.dart';
+import 'sigin.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -46,10 +46,10 @@ class LoginScreenState extends State<LoginScreen> {
       print('Password: ${passwordController.text}');
 
       // Navigate to Home
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => PomodoroApp()),
-      );
+      // Navigator.pushReplacement(
+      //   context,
+      //   MaterialPageRoute(builder: (context) => PomodoroApp()),
+      // );
     }
   }
 
