@@ -1,3 +1,5 @@
+
+import 'package:cblistify/pages/home.dart';
 import 'package:flutter/material.dart';
 //import 'package:flutter_application_1/pomodoro.dart';
 import 'sigin.dart';
@@ -22,36 +24,37 @@ class LoginScreenState extends State<LoginScreen> {
   }
 
   void _handleLogin() async {
-    if (formKey.currentState!.validate()) {
-      setState(() {
-        isLoading = true;
-      });
+  if (formKey.currentState!.validate()) {
+    setState(() {
+      isLoading = true;
+    });
 
-      // Simulate API call
-      await Future.delayed(Duration(seconds: 2));
+    // Simulate API call
+    await Future.delayed(Duration(seconds: 2));
 
-      setState(() {
-        isLoading = false;
-      });
+    setState(() {
+      isLoading = false;
+    });
 
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Login berhasil!'),
-          backgroundColor: Colors.green,
-        ),
+    // Show success message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Login berhasil!'),
+        backgroundColor: Colors.green,
+      ),
+    );
+
+    print('Email: ${emailController.text}');
+    print('Password: ${passwordController.text}');
+
+    // Navigate to Home
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => HomePage(selectedIndex: 2)),
       );
-
-      print('Email: ${emailController.text}');
-      print('Password: ${passwordController.text}');
-
-      // Navigate to Home
-      // Navigator.pushReplacement(
-      //   context,
-      //   MaterialPageRoute(builder: (context) => PomodoroApp()),
-      // );
-    }
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
