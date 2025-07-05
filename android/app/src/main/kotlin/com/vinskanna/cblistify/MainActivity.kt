@@ -1,4 +1,4 @@
-package com.example.cblistify
+package com.vinskanna.cblistify
 
 import io.flutter.embedding.android.FlutterActivity
 
