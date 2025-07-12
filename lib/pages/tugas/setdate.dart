@@ -330,35 +330,72 @@ class _DateTimePickerDialogState extends State<DateTimePickerDialog> {
     });
   }
 
-  void _selectTime(bool isStartTime) async {
-    TimeOfDay? pickedTime = await showTimePicker(
-      context: context,
-      initialTime: isStartTime ? startTime! : endTime!,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: Color(0xFFFF69B4),
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Colors.black,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
+void _selectTime(bool isStartTime) async {
+  TimeOfDay initial = isStartTime
+      ? (startTime ?? TimeOfDay(hour: 6, minute: 0))
+      : (endTime ?? TimeOfDay(hour: 6, minute: 0));
 
-    if (pickedTime != null) {
-      setState(() {
-        if (isStartTime) {
-          startTime = pickedTime;
-        } else {
-          endTime = pickedTime;
-        }
-      });
-    }
+  TimeOfDay? pickedTime = await showTimePicker(
+    context: context,
+    initialTime: initial,
+    builder: (context, child) {
+      return MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaleFactor: 1.3), // Scale up
+        child: Localizations.override(
+          context: context,
+          locale: const Locale('en', 'US'),
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              timePickerTheme: TimePickerThemeData(
+                backgroundColor: Colors.white,
+                dialBackgroundColor: Colors.pink.shade50,
+                dialHandColor: Colors.pink,
+                hourMinuteTextColor: Colors.pink,
+                hourMinuteTextStyle: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+                dayPeriodColor: Colors.pink.shade100,
+                dayPeriodTextColor: Colors.white,
+                hourMinuteColor: Colors.pink.shade100,
+                helpTextStyle: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.pink,
+                ),
+                cancelButtonStyle: TextButton.styleFrom(
+                  foregroundColor: Colors.pink,
+                ),
+                confirmButtonStyle: TextButton.styleFrom(
+                  foregroundColor: Colors.pink,
+                ),
+              ),
+              colorScheme: ColorScheme.light(
+                primary: Colors.pink,
+                onPrimary: Colors.white,
+                surface: Colors.white,
+                onSurface: Colors.black,
+              ),
+            ),
+            child: child!,
+          ),
+        ),
+      );
+    },
+  );
+
+  if (pickedTime != null) {
+    setState(() {
+      if (isStartTime) {
+        startTime = pickedTime;
+      } else {
+        endTime = pickedTime;
+      }
+    });
   }
+}
+
+
 
   bool _isSameDay(DateTime date1, DateTime date2) {
     return date1.year == date2.year &&
