@@ -1,15 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:cblistify/theme_notifier.dart';
+import 'package:cblistify/theme_pallete.dart';
 
-class Task {
-  final String category;
+// Model untuk fetch dari Supabase
+class TaskItem {
+  final String id;
   final String name;
+  final String categoryName;
 
-  Task({required this.category, required this.name});
+  TaskItem({
+    required this.id,
+    required this.name,
+    required this.categoryName,
+  });
+
+  factory TaskItem.fromJson(Map<String, dynamic> json) {
+    return TaskItem(
+      id: json['id'],
+      name: json['title'],
+      categoryName: json['categories']['category'],
+    );
+  }
 }
 
 class TasksDialog extends StatefulWidget {
-  final Function(String?) onTaskSelected; // Callback when a task is selected
-  final String? selectedTaskName; // Currently selected task
+  final Function(String?) onTaskSelected;
+  final String? selectedTaskName;
 
   const TasksDialog({
     super.key,
@@ -22,156 +40,196 @@ class TasksDialog extends StatefulWidget {
 }
 
 class _TasksDialogState extends State<TasksDialog> {
-  // Contoh daftar tugas statis
-  final List<Task> _tasks = [
-    Task(category: "Study", name: "Belajar Flutter"),
-    Task(category: "Study", name: "Belajar HTML"),
-    Task(category: "Sport", name: "Jogging"),
-    Task(category: "Work", name: "Laporan Bulanan"),
-  ];
-
+  List<TaskItem> _tasks = [];
+  bool _isLoading = true;
   String? _tempSelectedTaskName;
 
   @override
   void initState() {
     super.initState();
     _tempSelectedTaskName = widget.selectedTaskName;
+    _loadTasks();
+  }
+
+  Future<void> _loadTasks() async {
+    final supabase = Supabase.instance.client;
+    final response = await supabase
+        .from('task')
+        .select('id, title, categories(category)')
+        .eq('user_id', supabase.auth.currentUser!.id)
+        .order('created_at', ascending: false);
+
+    final data = response as List<dynamic>;
+    setState(() {
+      _tasks = data.map((json) => TaskItem.fromJson(json)).toList();
+      _isLoading = false;
+    });
+  }
+
+  void _applySelection() {
+    widget.onTaskSelected(_tempSelectedTaskName);
+    Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Group tasks by category
-    final Map<String, List<Task>> groupedTasks = {};
+    final palette = Provider.of<ThemeNotifier>(context).palette;
+
+    final Map<String, List<TaskItem>> groupedTasks = {};
     for (var task in _tasks) {
-      if (!groupedTasks.containsKey(task.category)) {
-        groupedTasks[task.category] = [];
-      }
-      groupedTasks[task.category]!.add(task);
+      groupedTasks.putIfAbsent(task.categoryName, () => []).add(task);
     }
 
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Text(
-                  'Tugas',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.pink[300],
-                  ),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const SizedBox(height: 30),
-              ...groupedTasks.entries.map((entry) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      entry.key, // Category name
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[800],
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    ...entry.value.map((task) {
-                      return _buildTaskItem(task.name);
-                    }).toList(),
-                    const SizedBox(height: 20), // Space after each category
-                  ],
-                );
-              }).toList(),
-              // Add a section for "Add Task" if desired
-              // TextButton(
-              //   onPressed: () {
-              //     // TODO: Implement add new task functionality
-              //   },
-              //   child: Text('Add New Task', style: TextStyle(color: Colors.blue)),
-              // )
-              // const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  OutlinedButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.pink[300],
-                      side: BorderSide(color: Colors.pink[300]!, width: 2),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 15),
-                    ),
-                    child: const Text(
-                      'Cancel',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  const SizedBox(width: 15),
-                  ElevatedButton(
-                    onPressed: () {
-                      widget.onTaskSelected(_tempSelectedTaskName);
-                      Navigator.of(context).pop();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.pink[300],
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 15),
-                      elevation: 2,
-                    ),
-                    child: const Text(
-                      'Apply',
-                      style: TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
-                    ),
-                  ),
-                ],
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Pilih Tugas untuk Sesi Pomodoro',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 24),
+            _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        ...groupedTasks.entries.map((entry) {
+                          return _buildCategorySection(
+                            entry.key,
+                            entry.value,
+                            palette,
+                          );
+                        }).toList(),
+                        _buildClearSelectionTile(),
+                      ],
+                    ),
+                  ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _applySelection,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: palette.base,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: const Text(
+                  'Pilih Tugas Ini',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildTaskItem(String taskName) {
-    final bool isSelected = _tempSelectedTaskName == taskName;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _tempSelectedTaskName = taskName;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-        margin: const EdgeInsets.only(bottom: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.pink[100] : Colors.pink[50], // Highlight if selected
-          borderRadius: BorderRadius.circular(12),
-          border: isSelected ? Border.all(color: Colors.pink[300]!, width: 1.5) : null,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              taskName,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey[800],
-              ),
+  Widget _buildCategorySection(
+    String category,
+    List<TaskItem> tasks,
+    ThemePalette palette,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 16.0, bottom: 8.0),
+          child: Text(
+            category.toUpperCase(),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[600],
+              letterSpacing: 0.5,
             ),
-            if (isSelected)
-              Icon(Icons.check_circle, color: Colors.pink[300], size: 22),
-          ],
+          ),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: tasks
+                .map((task) => _buildTaskItem(task.name, palette))
+                .toList(),
+          ),
+        ),
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
+  Widget _buildTaskItem(String taskName, ThemePalette palette) {
+    final bool isSelected = _tempSelectedTaskName == taskName;
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        onTap: () => setState(() => _tempSelectedTaskName = taskName),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Text(
+          taskName,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            color: isSelected ? palette.base : Colors.black87,
+          ),
+        ),
+        trailing: Radio<String>(
+          value: taskName,
+          groupValue: _tempSelectedTaskName,
+          onChanged: (value) => setState(() => _tempSelectedTaskName = value),
+          activeColor: palette.base,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildClearSelectionTile() {
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        onTap: () => setState(() => _tempSelectedTaskName = null),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        leading: const Icon(Icons.do_not_disturb, color: Colors.grey),
+        title: Text(
+          "Tidak ada tugas (fokus umum)",
+          style: TextStyle(
+            color: Colors.grey[700],
+            fontStyle: FontStyle.italic,
+          ),
         ),
       ),
     );

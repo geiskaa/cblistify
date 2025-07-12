@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-// Callback function to return updated settings
 typedef SettingsCallback = void Function({
   int? pomodoroDuration,
   int? shortBreakDuration,
