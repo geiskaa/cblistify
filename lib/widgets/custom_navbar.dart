@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:cblistify/pages/home.dart';
+import 'package:cblistify/home/home_page.dart';
 import 'package:cblistify/pages/kalender.dart';
 import 'package:cblistify/pages/menu.dart';
 import 'package:cblistify/pages/pomodoro/pomodoro.dart';

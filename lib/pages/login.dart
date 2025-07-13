@@ -1,5 +1,5 @@
 
-import 'package:cblistify/pages/home.dart';
+import 'package:cblistify/home/home_page.dart';
 import 'package:flutter/material.dart';
 //import 'package:flutter_application_1/pomodoro.dart';
 import 'sigin.dart';
