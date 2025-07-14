@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:temaa/theme_notifier.dart';
+import 'package:cblistify/tema/theme_notifier.dart';
 
 class NotifikasiPage extends StatelessWidget {
   const NotifikasiPage({super.key});

@@ -5,9 +5,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
-import 'package:temaa/theme_pallete.dart';
-import 'package:temaa/theme_notifier.dart';
-import 'package:temaa/pages/profil/pangkas_foto.dart';
+import 'package:cblistify/tema/theme_pallete.dart';
+import 'package:cblistify/tema/theme_notifier.dart';
+import 'package:cblistify/pages/profil/pangkas_foto.dart';
 
 class EditProfilPage extends StatefulWidget {
   const EditProfilPage({super.key});

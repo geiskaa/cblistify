@@ -6,7 +6,7 @@ import 'package:cblistify/pages/menu.dart';
 import 'package:cblistify/pages/pomodoro/tasks_dialog.dart';
 import 'package:cblistify/widgets/custom_navbar.dart';
 import 'package:cblistify/pages/pomodoro/settings_dialog.dart';
-import 'package:cblistify/theme_notifier.dart';
+import 'package:cblistify/tema/theme_notifier.dart';
 
 import 'dart:async';
 

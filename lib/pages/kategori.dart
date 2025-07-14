@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cblistify/theme_notifier.dart';
+import 'package:cblistify/tema/theme_notifier.dart';
 
 class KategoriPage extends StatelessWidget {
   const KategoriPage({super.key});
