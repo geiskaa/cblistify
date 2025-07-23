@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:temaa/pages/menu.dart';
-import 'package:temaa/theme_notifier.dart';
-import 'package:temaa/theme_pallete.dart';
-import 'package:temaa/widgets/custom_navbar.dart';
+import 'package:cblistify/pages/menu/menu.dart';
+import 'package:cblistify/tema/theme_notifier.dart';
+import 'package:cblistify/tema/theme_pallete.dart';
+import 'package:cblistify/widgets/custom_navbar.dart';
 import 'dart:async'; // Import for Timer
 
 class ProfilPage extends StatefulWidget {

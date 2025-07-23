@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:cblistify/theme_notifier.dart';
-import 'package:cblistify/theme_pallete.dart';
-
+import 'package:cblistify/tema/theme_pallete.dart';
+import 'package:cblistify/tema/theme_notifier.dart';
 // Model untuk fetch dari Supabase
 class TaskItem {
   final String id;
