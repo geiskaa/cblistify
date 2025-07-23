@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cblistify/home/home_page.dart';
 import 'package:cblistify/pages/kalender.dart';
-import 'package:cblistify/pages/menu.dart';
+import 'package:cblistify/pages/menu/menu.dart';
 import 'package:cblistify/pages/pomodoro/pomodoro.dart';
 import 'package:cblistify/pages/profil/profil.dart';
 import 'package:cblistify/tema/theme_notifier.dart';

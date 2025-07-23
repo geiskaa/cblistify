@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cblistify/home/home_page.dart';
 import 'package:cblistify/pages/kalender.dart';
-import 'package:cblistify/pages/menu.dart';
+import 'package:cblistify/pages/menu/menu.dart';
 import 'package:cblistify/pages/pomodoro/tasks_dialog.dart';
 import 'package:cblistify/widgets/custom_navbar.dart';
 import 'package:cblistify/pages/pomodoro/settings_dialog.dart';

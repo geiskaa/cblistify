@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:cblistify/pages/menu.dart';
+import 'package:cblistify/pages/menu/menu.dart';
 import 'package:cblistify/pages/tugas/buat_tugas.dart';
 import 'package:cblistify/pages/tugas/detail_tugas.dart';
 import 'package:cblistify/tema/theme_pallete.dart';
