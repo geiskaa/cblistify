@@ -19,6 +19,7 @@ class PomodoroHome extends StatefulWidget {
 }
 
 class _PomodoroHomeState extends State<PomodoroHome> with SingleTickerProviderStateMixin {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   TabController? _tabController;
   int _remainingSeconds = 15 * 60;
   bool _isRunning = false;
@@ -167,6 +168,8 @@ class _PomodoroHomeState extends State<PomodoroHome> with SingleTickerProviderSt
     const double buttonHeight = 55.0;
 
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: DrawerMenu(),
       backgroundColor: palette.lighter,
       body: SafeArea(
         child: LayoutBuilder(
@@ -334,7 +337,11 @@ class _PomodoroHomeState extends State<PomodoroHome> with SingleTickerProviderSt
         ),
       ),
       bottomNavigationBar: CustomNavBar(
-        currentIndex: widget.selectedIndex,
+        currentIndex: _localCurrentIndex,
+        onMenuTap: () {
+          _scaffoldKey.currentState?.openDrawer();
+        },
+        //onItemTapped: _onNavBarItemTapped,
       ),
     );
   }

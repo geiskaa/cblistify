@@ -158,8 +158,8 @@ class CustomNavBar extends StatelessWidget {
                 _buildNavItem(context, Icons.timer, 'Timer', 3, palette),
                 _buildNavItem(
                   context,
-                  Icons.analytics_outlined,
-                  'Analisis',
+                  Icons.person,
+                  'Profil',
                   4,
                   palette,
                 ),

@@ -1,3 +1,4 @@
+import 'package:cblistify/pages/menu/menu.dart';
 import 'package:cblistify/pages/tugas/buat_tugas.dart';
 import 'package:cblistify/widgets/custom_navbar.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +17,7 @@ class KalenderPage extends StatefulWidget {
 }
 
 class _KalenderPageState extends State<KalenderPage> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
@@ -45,13 +47,16 @@ class _KalenderPageState extends State<KalenderPage> {
     final events = _getEventsForDay(_selectedDay!);
 
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: palette.lighter,
       appBar: AppBar(
         title: const Text("Kalender", style: TextStyle(color: Colors.black)),
         backgroundColor: palette.base,
         elevation: 0,
         centerTitle: true,
+        automaticallyImplyLeading: false,
       ),
+      drawer: DrawerMenu(),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -140,7 +145,12 @@ class _KalenderPageState extends State<KalenderPage> {
         backgroundColor: palette.base,
         child: const Icon(Icons.add),
       ),
-      bottomNavigationBar: CustomNavBar(currentIndex: widget.selectedIndex),
+      bottomNavigationBar: CustomNavBar(
+        currentIndex: widget.selectedIndex,
+        onMenuTap: (){
+          _scaffoldKey.currentState?.openDrawer();
+        },
+      ),
     );
   }
 }
