@@ -95,9 +95,12 @@ class _HomePageState extends State<HomePage> {
 
   void _runFilter(String keyword) {
     final results = keyword.isEmpty
-        ? _allTasks.where((task) => task['category_id'] == _selectedCategory).toList()
+        ? _allTasks.where((task) =>
+            task['category_id'] == _selectedCategory &&
+            task['is_completed'] == false).toList()
         : _allTasks.where((task) =>
             task['category_id'] == _selectedCategory &&
+            task['is_completed'] == false &&
             (task['title'] as String).toLowerCase().contains(keyword.toLowerCase())).toList();
 
     setState(() => _foundTasks = results);

@@ -1,11 +1,12 @@
+import 'package:cblistify/pages/profil/edit_profil.dart';
+import 'package:cblistify/pages/tugas/riwayat_tugas.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:cblistify/pages/menu/menu.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cblistify/tema/theme_notifier.dart';
 import 'package:cblistify/tema/theme_pallete.dart';
 import 'package:cblistify/widgets/custom_navbar.dart';
-import 'dart:async'; // Import for Timer
 
 class ProfilPage extends StatefulWidget {
   final int selectedIndex;
@@ -15,94 +16,77 @@ class ProfilPage extends StatefulWidget {
   State<ProfilPage> createState() => _ProfilPageState();
 }
 
-class _ProfilPageState extends State<ProfilPage> with SingleTickerProviderStateMixin {
-  // Tambahkan SingleTickerProviderStateMixin di sini
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>(); 
-  late Timer _quoteTimer;
-  int _currentQuoteIndex = 0;
+class _ProfilPageState extends State<ProfilPage> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  // Variabel untuk animasi maskot
-  late AnimationController _mascotAnimationController;
-  late Animation<double> _mascotAnimation;
+  int _tugasSelesaiCount = 0;
+  int _tugasTertundaCount = 0;
 
-  final List<Map<String, String>> _quotes = [
-    {
-      "text": "Jangan hanya hitung hari, buatlah hari-hari itu berarti.",
-      "author": "- Muhammad Ali"
-    },
-    {
-      "text": "Cara terbaik untuk memprediksi masa depan adalah dengan menciptakannya.",
-      "author": "- Peter Drucker"
-    },
-    {
-      "text": "Percayalah pada diri sendiri, dan semua yang Anda inginkan akan menjadi milik Anda.",
-      "author": "- Norman Vincent Peale"
-    },
-    {
-      "text": "Kerja keras mengalahkan bakat ketika bakat tidak bekerja keras.",
-      "author": "- Tim Notke"
-    },
-  ];
+  String _fullName = 'Memuat...';
+  String? _avatarUrl;
 
   @override
   void initState() {
     super.initState();
-    // Inisialisasi Timer untuk quotes
-    _quoteTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      if (mounted) {
-        setState(() {
-          _currentQuoteIndex = (_currentQuoteIndex + 1) % _quotes.length;
-        });
-      }
+    _loadProfileData();
+    _loadTaskCounts();
+  }
+
+  Future<void> _loadProfileData() async {
+    final supabase = Supabase.instance.client;
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    final response = await supabase
+        .from('profiles')
+        .select()
+        .eq('id', user.id)
+        .single();
+
+    if (!mounted) return;
+
+    setState(() {
+      _fullName = response['full_name'] ?? 'Tanpa Nama';
+      _avatarUrl =
+          '${response['avatar_url']}?v=${DateTime.now().millisecondsSinceEpoch}';
     });
-
-    // Inisialisasi AnimationController untuk maskot
-    _mascotAnimationController = AnimationController(
-      vsync: this, // 'this' merujuk ke SingleTickerProviderStateMixin
-      duration: const Duration(seconds: 2), // Durasi satu siklus naik-turun
-    )..repeat(reverse: true); // Mengulang animasi terus-menerus (maju dan mundur)
-
-    // Definisikan animasi (pergerakan dari 0 ke -10 dan kembali ke 0)
-    _mascotAnimation = Tween<double>(begin: 0.0, end: -10.0).animate(
-      CurvedAnimation(
-        parent: _mascotAnimationController,
-        curve: Curves.easeInOutSine, // Kurva animasi untuk gerakan halus
-      ),
-    );
   }
 
-  @override
-  void dispose() {
-    _quoteTimer.cancel(); // Batalkan timer quotes
-    _mascotAnimationController.dispose(); // Buang controller animasi maskot
-    super.dispose();
-  }
+  Future<void> _loadTaskCounts() async {
+    final supabase = Supabase.instance.client;
+    final user = supabase.auth.currentUser;
+    if (user == null) {
+      debugPrint('User belum login');
+      return;
+    }
 
-  String _getGreeting() {
-    final hour = DateTime.now().hour;
-    if (hour >= 5 && hour < 12) {
-      return 'Selamat pagi!';
-    } else if (hour >= 12 && hour < 17) {
-      return 'Selamat siang!';
-    } else if (hour >= 17 && hour < 20) {
-      return 'Selamat sore!';
-    } else {
-      return 'Selamat malam!';
+    try {
+      // Ambil semua task milik user ini
+      final response = await supabase
+          .from('task')
+          .select('is_completed') // hanya ambil status
+          .eq('user_id', user.id); // filter user
+
+      final allTasks = response as List<dynamic>;
+
+      final selesaiCount = allTasks.where((task) =>
+        task['is_completed'] == true).length;
+
+      final tertundaCount = allTasks.where((task) =>
+        task['is_completed'] == false).length;
+
+      setState(() {
+        _tugasSelesaiCount = selesaiCount;
+        _tugasTertundaCount = tertundaCount;
+      });
+
+      debugPrint('SELESAI: $selesaiCount, TERTUNDA: $tertundaCount');
+    } catch (e) {
+      debugPrint('Gagal ambil jumlah tugas: $e');
     }
   }
 
-  String _getMascotImage() {
-    final hour = DateTime.now().hour;
-    if (hour >= 5 && hour < 12) {
-      return 'assets/images/maskot_pagi.png';
-    } else if (hour >= 12 && hour < 17) {
-      return 'assets/images/maskot_siang.png';
-    } else if (hour >= 17 && hour < 20) {
-      return 'assets/images/maskot_sore.png';
-    } else {
-      return 'assets/images/maskot_malam.png';
-    }
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -110,146 +94,173 @@ class _ProfilPageState extends State<ProfilPage> with SingleTickerProviderStateM
 
     return Scaffold(
       key: _scaffoldKey,
-      drawer: const DrawerMenu(),
       backgroundColor: palette.lighter,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Header
-              Container(
-                height: 250,
-                color: palette.base,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Dynamic Mascot Image with Animation
-                    Positioned(
-                      top: 20,
-                      left: 20,
-                      child: AnimatedBuilder(
-                        animation: _mascotAnimation,
-                        builder: (context, child) {
-                          return Transform.translate(
-                            offset: Offset(0, _mascotAnimation.value), // Menggerakkan maskot ke atas/bawah
-                            child: Image.asset(
-                              _getMascotImage(),
-                              height: 150, // Adjust size as needed
-                              width: 150, // Adjust size as needed
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildProfileHeader(palette),
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Ringkasan Tugas',
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: palette.darker)),
+                  const SizedBox(height: 15),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildSummaryCard(_tugasSelesaiCount, 'Tugas Selesai', palette, () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const RiwayatTugasPage(isCompleted: true),
                             ),
                           );
-                        },
+                        }),
                       ),
-                    ),
-                    // Dynamic Greeting
-                    Positioned(
-                      top: 40,
-                      left: 180, // Adjust position based on mascot image
-                      child: Text(
-                        _getGreeting(),
-                        style: TextStyle(
-                          fontSize: 28,
+                      const SizedBox(width: 15),
+                      Expanded(
+                        child: _buildSummaryCard(_tugasTertundaCount, 'Tugas Tertunda', palette, () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const RiwayatTugasPage(isCompleted: false),
+                            ),
+                          );
+                        }),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 30),
+                  Text('Rekap Harian',
+                      style: TextStyle(
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: palette.darker,
-                        ),
-                      ),
-                    ),
-                    // Dynamic Quote
-                    Positioned(
-                      top: 90, // Adjust position based on greeting
-                      left: 180,
-                      right: 20,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _quotes[_currentQuoteIndex]["text"]!,
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: palette.darker,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Align(
-                            alignment: Alignment.bottomRight,
-                            child: Text(
-                              _quotes[_currentQuoteIndex]["author"]!,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontStyle: FontStyle.italic,
-                                color: palette.darker,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                          color: palette.darker)),
+                  const SizedBox(height: 15),
+                  _buildBarChart(palette),
+                ],
               ),
-              Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Ringkasan Tugas',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: palette.darker)),
-                    const SizedBox(height: 15),
-                    Row(
-                      children: [
-                        Expanded(child: _buildSummaryCard(1, 'Tugas Selesai', palette)),
-                        const SizedBox(width: 15),
-                        Expanded(child: _buildSummaryCard(2, 'Tugas Tertunda', palette)),
-                      ],
-                    ),
-                    const SizedBox(height: 30),
-                    Text('Rekap Harian',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: palette.darker)),
-                    const SizedBox(height: 15),
-                    _buildBarChart(palette),
-                  ],
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: CustomNavBar(
+        currentIndex: widget.selectedIndex,
+        onMenuTap: () {
+          _scaffoldKey.currentState?.openDrawer();
+        },
+      ),
+    );
+  }
+
+  Widget _buildProfileHeader(ThemePalette palette) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(top: 60, bottom: 24),
+      decoration: BoxDecoration(
+        color: palette.base.withOpacity(0.25),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+      ),
+      child: Column(
+        children: [
+          Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              CircleAvatar(
+                radius: 50,
+                backgroundImage:
+                    _avatarUrl != null ? NetworkImage(_avatarUrl!) : null,
+                child: _avatarUrl == null
+                    ? Icon(Icons.person, size: 50, color: Colors.grey[400])
+                    : null,
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  color: palette.lighter,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: palette.base.withOpacity(0.25),
+                    width: 2,
+                  ),
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    Icons.edit_outlined,
+                    size: 20,
+                    color: palette.darker,
+                  ),
+                  onPressed: () async {
+                    final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const EditProfilPage()));
+
+                    if (result == true) {
+                      await _loadProfileData();
+                    }
+                  },
+                  padding: const EdgeInsets.all(8),
+                  constraints: const BoxConstraints(),
                 ),
               ),
             ],
           ),
-        ),
-      ),
-      bottomNavigationBar: CustomNavBar(currentIndex: widget.selectedIndex,
-      onMenuTap: (){
-        _scaffoldKey.currentState?.openDrawer();
-      },),
-    );
-  }
-
-  Widget _buildSummaryCard(int count, String label, ThemePalette palette) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: palette.darker.withOpacity(0.08),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+          const SizedBox(height: 16),
+          Text('Hello', style: TextStyle(color: palette.darker, fontSize: 16)),
+          const SizedBox(height: 4),
+          Text(
+            _fullName,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: palette.darker,
+            ),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('$count',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: palette.darker,
-              )),
-          const SizedBox(height: 5),
-          Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-        ],
+    );
+  }
+
+  Widget _buildSummaryCard(int count, String label, ThemePalette palette, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.grey.shade300),
+          boxShadow: [
+            BoxShadow(
+              color: palette.darker.withOpacity(0.08),
+              spreadRadius: 1,
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('$count',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: palette.darker,
+                )),
+            const SizedBox(height: 5),
+            Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+          ],
+        ),
       ),
     );
   }
@@ -261,79 +272,108 @@ class _ProfilPageState extends State<ProfilPage> with SingleTickerProviderStateM
       height: 200,
       padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 5.0),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(15),
         border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: palette.darker.withOpacity(0.08),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
-      child: BarChart(
-        BarChartData(
-          alignment: BarChartAlignment.spaceAround,
-          maxY: 8,
-          barTouchData: BarTouchData(enabled: false),
-          titlesData: FlTitlesData(
-            show: true,
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: getTitles,
-                reservedSize: 30,
-              ),
-            ),
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                interval: 2,
-                reservedSize: 30,
-                getTitlesWidget: (value, meta) => Text(
-                  value.toInt().toString(),
-                  style: TextStyle(fontSize: 12, color: palette.darker),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Grafik batang transparan
+          Opacity(
+            opacity: 0.25,
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                maxY: 8,
+                barTouchData: BarTouchData(enabled: false),
+                titlesData: FlTitlesData(
+                  show: true,
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: getTitles,
+                      reservedSize: 30,
+                    ),
+                  ),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      interval: 2,
+                      reservedSize: 30,
+                      getTitlesWidget: (value, meta) => Text(
+                        value.toInt().toString(),
+                        style: TextStyle(fontSize: 12, color: palette.darker),
+                      ),
+                    ),
+                  ),
+                  topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
                 ),
+                gridData: const FlGridData(show: false),
+                borderData: FlBorderData(show: false),
+                barGroups: barValues.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final value = entry.value;
+                  return BarChartGroupData(
+                    x: index,
+                    barRods: [
+                      BarChartRodData(
+                        toY: value,
+                        color: palette.base.withOpacity(0.6), // pastikan warnanya tidak full solid
+                        width: 16,
+                        borderRadius: BorderRadius.circular(6),
+                        backDrawRodData: BackgroundBarChartRodData(
+                          show: true,
+                          toY: 8,
+                          color: palette.lighter.withOpacity(0.3),
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
               ),
             ),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
-          gridData: const FlGridData(show: false),
-          borderData: FlBorderData(show: false),
-          barGroups: barValues.asMap().entries.map((entry) {
-            final index = entry.key;
-            final value = entry.value;
-            return BarChartGroupData(
-              x: index,
-              barRods: [
-                BarChartRodData(
-                  toY: value,
-                  color: palette.base,
-                  width: 16,
-                  borderRadius: BorderRadius.circular(6),
-                  backDrawRodData: BackgroundBarChartRodData(
-                    show: true,
-                    toY: 8,
-                    color: palette.lighter,
+
+          // Teks overlay
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
+                Text(
+                  'Akan segera hadir',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Fitur baru, stay tune ya!',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontStyle: FontStyle.italic,
+                    color: Colors.black54,
                   ),
                 ),
               ],
-            );
-          }).toList(),
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }
-
   Widget getTitles(double value, TitleMeta meta) {
     const style = TextStyle(
       color: Colors.black87,
       fontWeight: FontWeight.w500,
       fontSize: 14,
     );
+
     Widget text;
     switch (value.toInt()) {
       case 0:
@@ -361,6 +401,7 @@ class _ProfilPageState extends State<ProfilPage> with SingleTickerProviderStateM
         text = const Text('', style: style);
         break;
     }
+
     return SideTitleWidget(
       axisSide: meta.axisSide,
       space: 12,
