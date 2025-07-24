@@ -1,3 +1,4 @@
+import 'package:cblistify/pages/login.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cblistify/pages/menu/cetak_laporan.dart';
@@ -9,7 +10,7 @@ import 'package:cblistify/pages/profil/profil.dart';
 import 'package:cblistify/tema/tema_page.dart';
 import 'package:cblistify/tema/theme_pallete.dart';
 import 'package:cblistify/tema/theme_notifier.dart';
-
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DrawerMenu extends StatelessWidget {
   const DrawerMenu({super.key});
@@ -20,7 +21,7 @@ class DrawerMenu extends StatelessWidget {
 
     return Drawer(
       child: Material(
-        color: Theme.of(context).canvasColor, 
+        color: Theme.of(context).canvasColor,
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
@@ -72,7 +73,7 @@ class DrawerMenu extends StatelessWidget {
               icon: Icons.logout,
               text: 'Logout',
               onTap: () {
-                Navigator.pop(context); 
+                Navigator.pop(context);
                 _showLogoutDialog(context);
               },
               iconColor: Colors.red,
@@ -83,11 +84,11 @@ class DrawerMenu extends StatelessWidget {
     );
   }
 
-  void _showLogoutDialog(BuildContext context) {
+  void _showLogoutDialog(BuildContext parentContext) {
     showDialog(
-      context: context,
+      context: parentContext,
       builder: (BuildContext dialogContext) {
-        final palette = Provider.of<ThemeNotifier>(context, listen: false).palette;
+        final palette = Provider.of<ThemeNotifier>(parentContext, listen: false).palette;
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
           title: const Text('Konfirmasi Logout'),
@@ -101,14 +102,29 @@ class DrawerMenu extends StatelessWidget {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red, // Warna tombol konfirmasi
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))
+                backgroundColor: Colors.red,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               child: const Text('Logout', style: TextStyle(color: Colors.white)),
-              onPressed: () {
-                Navigator.of(dialogContext).pop(); 
-                _performLogout(context);
+              onPressed: () async {
+                try {
+                  Navigator.of(dialogContext).pop(); // Tutup dialog dulu
+
+                  final response = await Supabase.instance.client.auth.signOut();
+
+                  // Setelah logout, hapus semua halaman sebelumnya dan arahkan ke Login
+                  Navigator.pushAndRemoveUntil(
+                    parentContext,
+                    MaterialPageRoute(builder: (context) => const LoginPage()),
+                    (route) => false,
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(parentContext).showSnackBar(
+                    SnackBar(content: Text('Gagal logout: $e')),
+                  );
+                }
               },
+
             ),
           ],
         );
@@ -116,29 +132,17 @@ class DrawerMenu extends StatelessWidget {
     );
   }
 
-  void _performLogout(BuildContext context) async {
-    
-    print("Proses logout berhasil, data sesi dihapus.");
-
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => const KategoriPage()), 
-      (Route<dynamic> route) => false,
-    );
-  }
-
   void _navigateAfterClose(BuildContext context, Widget? page) {
-  Navigator.pop(context); 
-
-  Future.delayed(const Duration(milliseconds: 250), () {
-    if (page != null) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => page),
-      );
-    }
-  });
-}
+    Navigator.pop(context);
+    Future.delayed(const Duration(milliseconds: 250), () {
+      if (page != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => page),
+        );
+      }
+    });
+  }
 
   Widget _buildGreetingHeader(ThemePalette palette) {
     final hour = DateTime.now().hour;
@@ -162,12 +166,12 @@ class DrawerMenu extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: palette.lighter, 
-          borderRadius: const BorderRadius.only(
+        color: palette.lighter,
+        borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(24),
           bottomRight: Radius.circular(24),
-          ),
         ),
+      ),
       child: Row(
         children: [
           Image.asset(imagePath, height: 64, width: 64),
@@ -208,7 +212,6 @@ class DrawerMenu extends StatelessWidget {
     );
   }
 
-  /// Widget item drawer yang dapat ditekan
   Widget _buildDrawerItem({
     required IconData icon,
     required String text,
