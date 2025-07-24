@@ -28,13 +28,13 @@ class DrawerMenu extends StatelessWidget {
             _buildDrawerItem(
               icon: Icons.person,
               text: 'My Profile',
-              onTap: () => _navigateAfterClose(context, const ProfilPage(selectedIndex: 2)),
+              onTap: () => _navigateAfterClose(context, const ProfilPage(selectedIndex: 4)),
               iconColor: palette.darker,
             ),
             _buildDrawerItem(
               icon: Icons.home,
               text: 'Home',
-              onTap: () => _navigateAfterClose(context, const HomePage(selectedIndex: 0)),
+              onTap: () => _navigateAfterClose(context, const HomePage(selectedIndex: 2)),
               iconColor: palette.darker,
             ),
             _buildDrawerItem(
@@ -161,13 +161,13 @@ class DrawerMenu extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: Color(0xFFB3D4FF),
-        borderRadius: BorderRadius.only(
+      decoration: BoxDecoration(
+        color: palette.lighter, 
+          borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(24),
           bottomRight: Radius.circular(24),
+          ),
         ),
-      ),
       child: Row(
         children: [
           Image.asset(imagePath, height: 64, width: 64),
