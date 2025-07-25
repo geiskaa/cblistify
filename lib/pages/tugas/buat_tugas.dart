@@ -379,24 +379,44 @@ class _BuatTugasPageState extends State<BuatTugas> {
     );
   }
 
+// GANTI SELURUH FUNGSI INI DI detail_tugas.dart
+
   Future<void> _selectDate() async {
+    // `final picked` tidak lagi diperlukan karena dialog tidak mengembalikan nilai via Navigator.pop
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => DateTimePickerDialog(
+        builder: (_) => DateTimePickerDialog(
           initialStartDate: _tanggal,
           initialEndDate: _endTanggal,
           initialStartTime: _waktu,
           initialEndTime: _endWaktu,
-          onConfirm: (startDate, endDate, startTime, endTime) {
-            if (startDate != null && startTime != null && endDate != null && endTime != null) {
-              setState(() {
-                _tanggal = startDate;
-                _waktu = startTime;
-                _endTanggal = endDate;
-                _endWaktu = endTime;
-              });
+          // ✅ PERBAIKI: Sesuaikan urutan parameter dan tipe datanya agar cocok dengan kontrak baru
+          onConfirm: (DateTime startDate, TimeOfDay startTime, DateTime endDate, TimeOfDay endTime) {
+            
+            // Pengecekan null tidak lagi diperlukan karena callback menjamin nilainya.
+            // Kita bisa langsung menggunakan nilainya.
+
+            // Tambahan: Validasi agar waktu selesai tidak mendahului waktu mulai
+            final startDateTime = DateTime(startDate.year, startDate.month, startDate.day, startTime.hour, startTime.minute);
+            final endDateTime = DateTime(endDate.year, endDate.month, endDate.day, endTime.hour, endTime.minute);
+
+            if (endDateTime.isBefore(startDateTime)) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Waktu selesai tidak boleh mendahului waktu mulai.'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+              return; // Jangan update jika tidak valid
             }
+            
+            setState(() {
+              _tanggal = startDate;
+              _waktu = startTime;
+              _endTanggal = endDate;
+              _endWaktu = endTime;
+            });
           },
         ),
       ),

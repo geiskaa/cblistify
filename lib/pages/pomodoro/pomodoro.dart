@@ -1,13 +1,14 @@
+import 'package:cblistify/pages/pomodoro/timer_painter.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cblistify/home/home_page.dart';
-import 'package:cblistify/pages/kalender.dart';
-import 'package:cblistify/pages/menu/menu.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 import 'package:cblistify/pages/pomodoro/tasks_dialog.dart';
 import 'package:cblistify/widgets/custom_navbar.dart';
 import 'package:cblistify/pages/pomodoro/settings_dialog.dart';
 import 'package:cblistify/tema/theme_notifier.dart';
-
+import 'package:cblistify/tema/theme_pallete.dart';
 import 'dart:async';
 
 class PomodoroHome extends StatefulWidget {
@@ -18,49 +19,66 @@ class PomodoroHome extends StatefulWidget {
   _PomodoroHomeState createState() => _PomodoroHomeState();
 }
 
-class _PomodoroHomeState extends State<PomodoroHome> with SingleTickerProviderStateMixin {
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+class _PomodoroHomeState extends State<PomodoroHome> with TickerProviderStateMixin {
   TabController? _tabController;
-  int _remainingSeconds = 15 * 60;
+  int _remainingSeconds = 25 * 60;
   bool _isRunning = false;
   Timer? _timer;
 
-  Map<int, int> _tabDurations = {
-    0: 15 * 60,
-    1: 5 * 60,
-    2: 15 * 60,
-  };
-
-  int _currentSets = 4;
+  Map<int, int> _tabDurations = {0: 25 * 60, 1: 5 * 60, 2: 15 * 60};
+  String? _selectedTaskId;
   String? _selectedTaskName;
-  late int _localCurrentIndex;
+
+  late AnimationController _alarmController;
+  late Animation<double> _shakeAnimation;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
+  int _totalSets = 4;
+  int _totalCycles = 1;
+  int _currentSets = 0;
+  int _currentCycle = 1;
+  bool _isAlarmSounded = false;
+  bool _isSessionComplete = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _tabController!.addListener(_onTabChanged);
-    _resetTimer(_tabDurations[_tabController!.index]!);
-    _localCurrentIndex = widget.selectedIndex;
+    _resetTimer(_tabDurations[0]!); 
+
+    _alarmController = AnimationController(vsync: this, duration: const Duration(milliseconds: 100))
+      ..addStatusListener((status) {
+        if (status == AnimationStatus.completed) _alarmController.reverse();
+      });
+    _shakeAnimation = Tween<double>(begin: 0, end: 5.0).animate(CurvedAnimation(parent: _alarmController, curve: Curves.elasticIn));
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    _tabController?.removeListener(_onTabChanged);
     _tabController?.dispose();
+    _alarmController.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
   void _startTimer() {
-    if (_isRunning) return;
+    if (_isRunning || _isSessionComplete) return;
     setState(() => _isRunning = true);
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_remainingSeconds > 0) {
         setState(() => _remainingSeconds--);
+        if (_remainingSeconds <= 10 && !_isAlarmSounded) {
+          _playFinishSound();
+          setState(() => _isAlarmSounded = true);
+          _alarmController.forward(from: 0.0);
+        }
       } else {
         _timer?.cancel();
         setState(() => _isRunning = false);
+        _moveToNextTab();
       }
     });
   }
@@ -75,274 +93,312 @@ class _PomodoroHomeState extends State<PomodoroHome> with SingleTickerProviderSt
     setState(() {
       _isRunning = false;
       _remainingSeconds = duration;
+      _isAlarmSounded = false;
     });
   }
 
   void _onTabChanged() {
-    if (!_tabController!.indexIsChanging) {
+    if (_tabController != null && !_tabController!.indexIsChanging) {
       _resetTimer(_tabDurations[_tabController!.index]!);
     }
   }
 
-  String get _timeFormatted {
-    final minutes = _remainingSeconds ~/ 60;
-    final seconds = _remainingSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  void _moveToNextTab() {
+    if (_tabController == null) return;
+    bool shouldStartNextTimer = true;
+
+    if (_tabController!.index == 0) {
+      _savePomodoroSession(); 
+      setState(() => _currentSets++);
+      if (_currentSets > 0 && _currentSets % _totalSets == 0) {
+        _tabController!.animateTo(2);
+      } else {
+        _tabController!.animateTo(1);
+      }
+    } else {
+      if (_tabController!.index == 2 && _currentCycle >= _totalCycles) {
+        setState(() => _isSessionComplete = true);
+        shouldStartNextTimer = false;
+      } else {
+        if (_tabController!.index == 2) {
+          setState(() {
+            _currentSets = 0;
+            _currentCycle++;
+          });
+        }
+        _tabController!.animateTo(0);
+      }
+    }
+
+    _playFinishSound();
+    if (shouldStartNextTimer) {
+      Future.delayed(const Duration(milliseconds: 500), () => _startTimer());
+    }
   }
 
-  double get _progress {
-    final totalDuration = _tabDurations[_tabController!.index]!;
-    return _remainingSeconds / totalDuration;
+  Future<void> _savePomodoroSession() async {
+    if (_selectedTaskId == null) return;
+    try {
+      final supabase = Supabase.instance.client;
+      final user = supabase.auth.currentUser;
+      if (user == null) throw "User tidak login";
+      final sessionData = {
+        'id': const Uuid().v4(),
+        'user_id': user.id,
+        'task_id': _selectedTaskId,
+        'duration_minutes': _tabDurations[0]! ~/ 60,
+        'completed_at': DateTime.now().toIso8601String(),
+      };
+      await supabase.from('pomodoro_sessions').insert(sessionData);
+      print("Sesi pomodoro berhasil disimpan");
+    } catch (e) {
+      print("Gagal menyimpan sesi pomodoro: $e");
+    }
   }
+
+  void _resetSession() {
+    setState(() {
+      _currentCycle = 1;
+      _currentSets = 0;
+      _isSessionComplete = false;
+      _tabController?.animateTo(0);
+      _resetTimer(_tabDurations[0]!);
+    });
+  }
+
+  Future<void> _playFinishSound() async {
+    try {
+      await _audioPlayer.play(AssetSource('sounds/timercountdown.mp3'));
+    } catch (e) {
+      print("Error playing sound: $e");
+    }
+  }
+
+  String get _timeFormatted => '${(_remainingSeconds ~/ 60).toString().padLeft(2, '0')}:${(_remainingSeconds % 60).toString().padLeft(2, '0')}';
+  double get _progress => _tabController != null && _tabDurations[_tabController!.index]! > 0 ? (_remainingSeconds / _tabDurations[_tabController!.index]!) : 1.0;
 
   void _showSettingsDialog() {
     showDialog(
       context: context,
-      builder: (_) {
-        return SettingsDialog(
-          initialPomodoroDuration: _tabDurations[0]! ~/ 60,
-          initialShortBreakDuration: _tabDurations[1]! ~/ 60,
-          initialLongBreakDuration: _tabDurations[2]! ~/ 60,
-          initialSets: _currentSets,
-          onApply: ({pomodoroDuration, shortBreakDuration, longBreakDuration, sets}) {
-            setState(() {
-              if (pomodoroDuration != null) _tabDurations[0] = pomodoroDuration;
-              if (shortBreakDuration != null) _tabDurations[1] = shortBreakDuration;
-              if (longBreakDuration != null) _tabDurations[2] = longBreakDuration;
-              if (sets != null) _currentSets = sets;
-
-              _resetTimer(_tabDurations[_tabController!.index]!);
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Pengaturan berhasil diterapkan!')),
-            );
-          },
-        );
-      },
+      builder: (_) => SettingsDialog(
+        initialPomodoroDuration: _tabDurations[0]!,
+        initialShortBreakDuration: _tabDurations[1]!,
+        initialLongBreakDuration: _tabDurations[2]!,
+        initialSets: _totalSets,
+        initialCycles: _totalCycles,
+        onApply: ({
+          required pomodoroDuration,
+          required shortBreakDuration,
+          required longBreakDuration,
+          required sets,
+          required cycles,
+        }) {
+          setState(() {
+            _tabDurations[0] = pomodoroDuration;
+            _tabDurations[1] = shortBreakDuration;
+            _tabDurations[2] = longBreakDuration;
+            _totalSets = sets;
+            _totalCycles = cycles;
+            _currentSets = 0;
+            _currentCycle = 1;
+            _isSessionComplete = false;
+            if (_tabController != null) {
+              _tabController!.animateTo(0);
+              _resetTimer(_tabDurations[0]!);
+            }
+          });
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pengaturan berhasil diterapkan!')));
+        },
+      ),
     );
   }
 
   void _showTasksDialog() {
     showModalBottomSheet(
       context: context,
-      builder: (_) {
-        return TasksDialog(
-          onTaskSelected: (taskName) {
-            setState(() {
-              _selectedTaskName = taskName;
-            });
-          },
-        );
-      },
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => TasksDialog(
+        selectedTaskId: _selectedTaskId,
+        onTaskSelected: (taskId, taskName) {
+          setState(() {
+            _selectedTaskId = taskId;
+            _selectedTaskName = taskName;
+          });
+        },
+      ),
     );
   }
 
-  void _onNavBarItemTapped(int index) {
-    if (index == _localCurrentIndex) return;
-
-    setState(() => _localCurrentIndex = index);
-
-    Widget nextPage;
-    switch (index) {
-      case 0: nextPage = DrawerMenu(); break;
-      case 1: nextPage = KalenderPage(selectedIndex: index); break;
-      case 2: nextPage = HomePage(selectedIndex: index); break;
-      case 3: nextPage = PomodoroHome(selectedIndex: index); break;
-      default: return;
-    }
-
-    Navigator.pushReplacement(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (_, __, ___) => nextPage,
-        transitionsBuilder: (_, animation, __, child) => FadeTransition(opacity: animation, child: child),
-        transitionDuration: const Duration(milliseconds: 200),
-      ),
-    );
+  String get _friendlyMessage {
+    if (_isSessionComplete) return "Sesi selesai! Kamu hebat!";
+    if (!_isRunning) return "Siap untuk fokus?";
+    if (_tabController?.index == 0) return "Waktunya fokus! Kamu pasti bisa.";
+    if (_tabController?.index == 1) return "Ambil nafas sejenak, regangkan badanmu.";
+    return "Kerja bagus! Istirahat yang cukup ya.";
   }
 
   @override
   Widget build(BuildContext context) {
     final palette = Provider.of<ThemeNotifier>(context).palette;
-    const double tabBarHeight = 50.0;
-    const double buttonHeight = 55.0;
 
     return Scaffold(
-      key: _scaffoldKey,
-      drawer: DrawerMenu(),
-      backgroundColor: palette.lighter,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final double timerSize = (constraints.maxHeight * 0.40).clamp(200.0, 280.0);
-
-            return Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const SizedBox(width: 24),
-                      Text(
-                        'Pomodoro',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: palette.darker,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: _showSettingsDialog,
-                        child: Icon(Icons.more_vert, color: palette.darker),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 24.0),
-                  height: tabBarHeight,
-                  decoration: BoxDecoration(
-                    color: palette.lighter,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: palette.darker.withOpacity(0.1)),
-                  ),
-                  child: TabBar(
-                    controller: _tabController,
-                    indicator: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      color: palette.base,
-                    ),
-                    labelColor: Colors.white,
-                    unselectedLabelColor: palette.darker,
-                    labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                    overlayColor: MaterialStateProperty.all(Colors.transparent),
-                    splashFactory: NoSplash.splashFactory,
-                    tabs: const [
-                      Tab(text: 'Pomodoro'),
-                      Tab(text: 'Jeda Singkat'),
-                      Tab(text: 'Jeda Panjang'),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                SizedBox(
-                  width: timerSize,
-                  height: timerSize,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      SizedBox(
-                        width: timerSize,
-                        height: timerSize,
-                        child: CircularProgressIndicator(
-                          value: _progress,
-                          strokeWidth: 15,
-                          backgroundColor: palette.lighter,
-                          valueColor: AlwaysStoppedAnimation<Color>(palette.base),
-                          strokeCap: StrokeCap.round,
-                        ),
-                      ),
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            _tabController?.index == 0
-                                ? 'Pomodoro'
-                                : _tabController?.index == 1
-                                    ? 'Jeda Singkat'
-                                    : 'Jeda Panjang',
-                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: palette.base),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _timeFormatted,
-                            style: TextStyle(fontSize: 60, fontWeight: FontWeight.bold, color: palette.base),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                SizedBox(
-                  width: 180,
-                  height: buttonHeight,
-                  child: ElevatedButton(
-                    onPressed: () => setState(() => _isRunning ? _pauseTimer() : _startTimer()),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: palette.base,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                      elevation: 5,
-                      shadowColor: palette.darker.withOpacity(0.1),
-                    ),
-                    child: Text(
-                      _isRunning ? 'Jeda' : 'Mulai',
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Colors.white),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                if (_selectedTaskName != null)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Tugas saat ini: $_selectedTaskName',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: palette.base),
-                      ),
-                    ),
-                  ),
-                if (_selectedTaskName != null) const SizedBox(height: 10),
-                GestureDetector(
-                  onTap: _showTasksDialog,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 24.0),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(15),
-                      boxShadow: [
-                        BoxShadow(
-                          color: palette.darker.withOpacity(0.08),
-                          spreadRadius: 2,
-                          blurRadius: 6,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: palette.base,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.check, color: Colors.white, size: 20),
-                      ),
-                      title: const Text("Tugas", style: TextStyle(fontSize: 12, color: Colors.black54)),
-                      subtitle: Text(
-                        _selectedTaskName ?? "Pilih Tugas",
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
-                      ),
-                      trailing: Icon(Icons.arrow_drop_down, color: palette.base, size: 30),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-              ],
-            );
-          },
+      backgroundColor: const Color(0xFFF4F6FD),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text('Pomodoro', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+        centerTitle: true,
+        actions: [
+          IconButton(icon: const Icon(Icons.settings_outlined, color: Colors.black54), onPressed: _showSettingsDialog),
+        ],
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+      body: Center(
+        child: Column(
+          children: [
+            const SizedBox(height: 10),
+            if (_tabController != null) _buildModeSelector(palette),
+            const Spacer(),
+            _buildTimerCircle(palette),
+            const SizedBox(height: 20),
+            _buildCycleIndicators(),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              child: Text(_friendlyMessage, textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: Colors.grey[700])),
+            ),
+            const Spacer(),
+            _buildTaskDisplay(),
+            const SizedBox(height: 20),
+            _buildStartButton(palette),
+            const SizedBox(height: 40),
+          ],
         ),
       ),
-      bottomNavigationBar: CustomNavBar(
-        currentIndex: _localCurrentIndex,
-        onMenuTap: () {
-          _scaffoldKey.currentState?.openDrawer();
-        },
-        //onItemTapped: _onNavBarItemTapped,
+      bottomNavigationBar: CustomNavBar(currentIndex: widget.selectedIndex),
+    );
+  }
+  
+  Widget _buildModeSelector(ThemePalette palette) {
+    return Container(
+      height: 55,
+      margin: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(color: Colors.black.withOpacity(0.05), borderRadius: BorderRadius.circular(15)),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: List.generate(3, (index) {
+          final titles = ['Fokus', 'Jeda Pendek', 'Jeda Panjang'];
+          bool isSelected = _tabController!.index == index;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () {
+                if (_isRunning) _pauseTimer();
+                _tabController!.animateTo(index);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(color: isSelected ? palette.base : Colors.transparent, borderRadius: BorderRadius.circular(10)),
+                child: Center(child: Text(titles[index], style: TextStyle(color: isSelected ? Colors.white : Colors.black54, fontWeight: FontWeight.bold))),
+              ),
+            ),
+          );
+        }),
       ),
+    );
+  }
+
+  Widget _buildTimerCircle(ThemePalette palette) {
+    final bool isAlmostUp = _remainingSeconds <= 10 && _remainingSeconds > 0;
+    final Color progressColor = isAlmostUp ? Colors.red.shade400 : palette.base;
+    return SizedBox(
+      width: 280,
+      height: 280,
+      child: TweenAnimationBuilder(
+        tween: Tween<double>(begin: _progress, end: _progress),
+        duration: const Duration(milliseconds: 200),
+        builder: (context, double value, child) => CustomPaint(
+          painter: TimerPainter(progress: value, progressColor: progressColor, backgroundColor: Colors.grey[200]!),
+          child: child,
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (isAlmostUp)
+                AnimatedBuilder(
+                  animation: _shakeAnimation,
+                  builder: (context, child) => Transform.translate(offset: Offset(_shakeAnimation.value, 0), child: child),
+                  child: Icon(Icons.notifications_active, color: progressColor, size: 32),
+                ),
+              Text(_timeFormatted, style: TextStyle(fontSize: 64, fontWeight: FontWeight.bold, color: _isSessionComplete ? Colors.grey : progressColor)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTaskDisplay() {
+    return _selectedTaskId == null
+        ? OutlinedButton.icon(
+            icon: const Icon(Icons.add_task, size: 20),
+            label: const Text("Pilih Tugas untuk Pomodoro"),
+            onPressed: _showTasksDialog,
+            style: OutlinedButton.styleFrom(foregroundColor: Colors.black54, side: BorderSide(color: Colors.grey[300]!), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          )
+        : Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey[200]!)),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.flag_outlined, color: Colors.black54),
+                const SizedBox(width: 12),
+                Flexible(child: Text(_selectedTaskName!, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87))),
+                const SizedBox(width: 12),
+                InkWell(onTap: _showTasksDialog, child: Text("Ganti", style: TextStyle(color: Colors.blue[700], fontWeight: FontWeight.bold))),
+              ],
+            ),
+          );
+  }
+
+  Widget _buildStartButton(ThemePalette palette) {
+    String buttonText;
+    VoidCallback onPressedAction;
+
+    if (_isSessionComplete) {
+      buttonText = 'Mulai Sesi Baru';
+      onPressedAction = _resetSession;
+    } else if (_isRunning) {
+      buttonText = 'JEDA';
+      onPressedAction = _pauseTimer;
+    } else {
+      buttonText = 'MULAI';
+      onPressedAction = _startTimer;
+    }
+
+    return SizedBox(
+      width: 250,
+      height: 60,
+      child: ElevatedButton(
+        onPressed: onPressedAction,
+        style: ElevatedButton.styleFrom(backgroundColor: palette.base, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)), elevation: 10, shadowColor: palette.base.withOpacity(0.5)),
+        child: Text(buttonText, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 2)),
+      ),
+    );
+  }
+
+  Widget _buildCycleIndicators() {
+    final setsToShow = _totalSets == 0 ? 0 : (_currentSets % _totalSets == 0 && _currentSets > 0 ? _totalSets : _currentSets % _totalSets);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text("Set: $setsToShow / $_totalSets", style: TextStyle(color: Colors.grey[600], fontSize: 16)),
+        const SizedBox(width: 24),
+        Text("Siklus: $_currentCycle / $_totalCycles", style: TextStyle(color: Colors.grey[600], fontSize: 16)),
+      ],
     );
   }
 }

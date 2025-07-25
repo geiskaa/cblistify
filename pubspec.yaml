@@ -34,8 +34,8 @@ dependencies:
   flutter:
     sdk: flutter
   provider: ^6.1.1
-  table_calendar: ^3.0.9
-  intl: ^0.18.1
+  table_calendar: ^3.1.1
+  intl: ^0.20.1
   shared_preferences: ^2.2.2
   fl_chart: ^0.68.0
   supabase_flutter: ^2.9.1
@@ -46,6 +46,9 @@ dependencies:
   image_picker: ^1.1.2
   uuid: ^4.5.1
   image_cropper: ^9.1.0
+  audioplayers: ^5.2.1
+  flutter_localizations: 
+    sdk: flutter
 
   
   # The following adds the Cupertino Icons font to your application.
@@ -91,6 +94,7 @@ flutter:
       - assets/images/maskot_malam.png
       - assets/images/listifylogo.png
       - assets/images/google.png
+      - assets/sounds/timercountdown.mp3
 
 
   # An image asset can refer to one or more resolution-specific "variants", see

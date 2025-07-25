@@ -5,12 +5,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cblistify/pages/login.dart';
 import 'package:cblistify/tema/theme_notifier.dart';
 import 'package:cblistify/database/utils/constants.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await GetStorage.init();
+  await initializeDateFormatting('id_ID', null);
 
   // Inisialisasi Supabase
   await Supabase.initialize(

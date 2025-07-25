@@ -1,130 +1,73 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
+import 'dart:typed_data'; // Diperlukan untuk Uint8List
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../main.dart';
+import 'package:flutter/foundation.dart'; 
 
 class SupabaseService {
-  // --- Upload Gambar ---
+  // --- Upload Gambar dari File ---
   Future<String> uploadImage(File file, String bucketName, String fileName) async {
-    final bytes = await file.readAsBytes();
-    await supabase.storage.from(bucketName).uploadBinary(
-      fileName,
-      bytes,
-      fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
-    );
-    return supabase.storage.from(bucketName).getPublicUrl(fileName);
+    try {
+      // ✅ GANTI: Gunakan Supabase.instance.client untuk mendapatkan client.
+      final supabase = Supabase.instance.client;
+
+      // Baca file menjadi bytes.
+      final bytes = await file.readAsBytes();
+
+      // Upload bytes ke Supabase Storage.
+      await supabase.storage.from(bucketName).uploadBinary(
+            fileName,
+            bytes,
+            fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+          );
+
+      // Ambil URL publik dari file yang baru diupload.
+      final imageUrl = supabase.storage.from(bucketName).getPublicUrl(fileName);
+      
+      // Print URL di console untuk debugging.
+      if (kDebugMode) {
+        print("Upload berhasil. URL: $imageUrl");
+      }
+      
+      return imageUrl;
+
+    } catch (e) {
+      // ✅ TAMBAHAN: Penanganan error yang lebih baik.
+      if (kDebugMode) {
+        print("Error saat upload gambar: $e");
+      }
+      // Lemparkan kembali error agar bisa ditangani di UI jika perlu.
+      throw 'Gagal mengupload gambar. Silakan coba lagi.';
+    }
   }
 
+  // --- Upload Gambar dari Bytes (Uint8List) ---
   Future<String> uploadImageBytes(Uint8List bytes, String bucketName, String fileName) async {
-    await supabase.storage.from(bucketName).uploadBinary(
-      fileName,
-      bytes,
-      fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
-    );
-    return supabase.storage.from(bucketName).getPublicUrl(fileName);
-  }
+    try {
+      // ✅ GANTI: Gunakan Supabase.instance.client untuk mendapatkan client.
+      final supabase = Supabase.instance.client;
 
-  // --- CRUD Notes ---
-  Future<List<Map<String, dynamic>>> getNotes() async {
-    final userId = supabase.auth.currentUser!.id;
-    final data = await supabase
-        .from('notes')
-        .select()
-        .eq('user_id', userId)
-        .order('created_at', ascending: false);
-    return data;
-  }
+      // Upload bytes langsung ke Supabase Storage.
+      await supabase.storage.from(bucketName).uploadBinary(
+            fileName,
+            bytes,
+            fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+          );
 
-  Future<void> addNote({
-    required String title,
-    required String description,
-    required DateTime startDate,
-    required DateTime endDate,
-    required String startTime,
-    required String endTime,
-    required String priority,
-  }) async {
-    final userId = supabase.auth.currentUser!.id;
-    await supabase.from('notes').insert({
-      'user_id': userId,
-      'title': title,
-      'description': description,
-      'start_date': startDate.toIso8601String(),
-      'end_date': endDate.toIso8601String(),
-      'start_time': startTime,
-      'end_time': endTime,
-      'priority': priority,
-    });
-  }
+      // Ambil URL publik dari file yang baru diupload.
+      final imageUrl = supabase.storage.from(bucketName).getPublicUrl(fileName);
 
-  Future<void> updateNote({
-    required int id,
-    required String title,
-    required String description,
-    required DateTime startDate,
-    required DateTime endDate,
-    required String startTime,
-    required String endTime,
-    required String priority,
-  }) async {
-    final updates = {
-      'title': title,
-      'description': description,
-      'start_date': startDate.toIso8601String(),
-      'end_date': endDate.toIso8601String(),
-      'start_time': startTime,
-      'end_time': endTime,
-      'priority': priority,
-      'updated_at': DateTime.now().toIso8601String(),
-    };
-    await supabase.from('notes').update(updates).eq('id', id);
-  }
+      if (kDebugMode) {
+        print("Upload bytes berhasil. URL: $imageUrl");
+      }
 
-  Future<void> deleteNote(int id) async {
-    await supabase.from('notes').delete().eq('id', id);
-  }
+      return imageUrl;
 
-  // --- CRUD Categories ---
-  Future<List<Map<String, dynamic>>> getCategories() async {
-    final userId = supabase.auth.currentUser!.id;
-    final data = await supabase
-        .from('categories')
-        .select()
-        .eq('user_id', userId)
-        .order('created_at', ascending: true);
-    return data;
-  }
-
-  Future<void> addCategory({required String category}) async {
-    final userId = supabase.auth.currentUser!.id;
-    await supabase.from('categories').insert({
-      'user_id': userId,
-      'category': category,
-    });
-  }
-
-  Future<void> deleteCategory(int id) async {
-    await supabase.from('categories').delete().eq('id', id);
-  }
-
-  // --- Profil Pengguna ---
-  Future<Map<String, dynamic>?> getProfile() async {
-    final userId = supabase.auth.currentUser!.id;
-    final data = await supabase.from('profiles').select().eq('id', userId).single();
-    return data;
-  }
-
-  Future<void> updateProfile({
-    required String username,
-    String? avatarUrl,
-  }) async {
-    final userId = supabase.auth.currentUser!.id;
-    final updates = {
-      'id': userId,
-      'username': username,
-      'avatar_url': avatarUrl,
-      'updated_at': DateTime.now().toIso8601String(),
-    };
-    await supabase.from('profiles').upsert(updates);
+    } catch (e) {
+      // ✅ TAMBAHAN: Penanganan error yang lebih baik.
+      if (kDebugMode) {
+        print("Error saat upload bytes gambar: $e");
+      }
+      throw 'Gagal mengupload gambar. Silakan coba lagi.';
+    }
   }
 }
