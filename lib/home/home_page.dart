@@ -1,5 +1,3 @@
-// lib/pages/home_page.dart
-
 import 'dart:async';
 import 'package:cblistify/pages/menu/menu.dart';
 import 'package:cblistify/pages/tugas/buat_tugas.dart';
@@ -22,8 +20,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  
-  // ✅ BARU: ID statis untuk kategori virtual "Semua"
+
   static const String _semuaCategoryId = 'semua-tasks-id';
 
   List<Map<String, dynamic>> _allTasks = [];
@@ -70,7 +67,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     }
   }
 
-  // ✅ REFACTOR: Query kategori sekarang mengambil data global DAN data personal.
   Future<void> _fetchCategories() async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
@@ -79,18 +75,16 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       final response = await Supabase.instance.client
           .from('categories')
           .select()
-          .or('is_global.eq.true,user_id.eq.${user.id}') // Ambil kategori global ATAU milik user
+          .or('is_global.eq.true,user_id.eq.${user.id}') 
           .order('created_at');
       
       if (mounted) {
         final dbCategories = List<Map<String, dynamic>>.from(response);
-        
-        // ✅ BARU: Buat dan tambahkan kategori "Semua" secara manual di awal daftar.
         final semuaCategory = {'id': _semuaCategoryId, 'category': 'Semua'};
         _categories = [semuaCategory, ...dbCategories];
 
         if (_selectedCategoryId == null) {
-          _selectedCategoryId = _semuaCategoryId; // Default ke "Semua"
+          _selectedCategoryId = _semuaCategoryId; 
         }
       }
     } catch (e) {
@@ -98,16 +92,15 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     }
   }
 
-  // ✅ REFACTOR: Query tugas sekarang HANYA mengambil data milik user.
   Future<void> _fetchTasks() async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) throw "Pengguna tidak login";
 
       final response = await Supabase.instance.client
-          .from('task') // Pastikan nama tabel Anda benar
+          .from('task') 
           .select()
-          .eq('user_id', user.id) // HANYA tugas milik user ini
+          .eq('user_id', user.id) 
           .eq('is_completed', false)
           .order('start_date');
       if (mounted) _allTasks = List<Map<String, dynamic>>.from(response);
@@ -127,18 +120,15 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     }
   }
 
-  // ✅ REFACTOR: Filter sekarang memiliki logika khusus untuk kategori "Semua".
   void _runFilter(String keyword) {
     if (_selectedCategoryId == null) return;
     List<Map<String, dynamic>> results;
 
-    // Logika untuk kategori "Semua"
     if (_selectedCategoryId == _semuaCategoryId) {
       results = keyword.isEmpty
-          ? _allTasks // Tampilkan semua tugas jika tidak ada keyword
+          ? _allTasks 
           : _allTasks.where((task) => task['title'].toLowerCase().contains(keyword.toLowerCase())).toList();
     } 
-    // Logika untuk kategori lainnya
     else {
       results = keyword.isEmpty
           ? _allTasks.where((task) => task['category_id'] == _selectedCategoryId).toList()
@@ -157,7 +147,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     });
   }
 
-  // ✅ REFACTOR: Update sekarang juga dicek berdasarkan user_id untuk keamanan.
   Future<void> _handleTaskCompletion(Map<String, dynamic> task) async {
     final bool? confirmed = await _showConfirmationDialog(task['title']);
     if (confirmed == true && mounted) {
@@ -168,7 +157,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         await Supabase.instance.client
             .from('task')
             .update({'is_completed': true, 'updated_at': DateTime.now().toIso8601String()})
-            .match({'id': task['id'], 'user_id': user.id}); // Pastikan hanya update tugas milik user
+            .match({'id': task['id'], 'user_id': user.id}); 
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Tugas berhasil diselesaikan!'), backgroundColor: Colors.green),
@@ -179,8 +168,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       }
     }
   }
-
-  // --- Sisa fungsi (UI & Animasi) tidak berubah secara signifikan ---
 
   void _startAnimations() {
     _quoteTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
@@ -345,10 +332,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   Widget _buildCategoryCard(Map<String, dynamic> category, ThemePalette palette) {
-    // ✅ REFACTOR: Logika penghitungan jumlah tugas disesuaikan untuk "Semua"
     final int count;
     if (category['id'] == _semuaCategoryId) {
-      count = _allTasks.length; // Jumlah semua tugas
+      count = _allTasks.length; 
     } else {
       count = _allTasks.where((task) => task['category_id'] == category['id']).length;
     }

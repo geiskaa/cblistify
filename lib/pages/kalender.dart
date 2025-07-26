@@ -1,5 +1,3 @@
-// lib/pages/kalender.dart
-
 import 'package:cblistify/pages/tugas/buat_tugas.dart';
 import 'package:cblistify/pages/tugas/detail_tugas.dart';
 import 'package:cblistify/widgets/custom_navbar.dart';
@@ -11,8 +9,6 @@ import 'package:provider/provider.dart';
 import 'package:cblistify/tema/theme_notifier.dart';
 import 'package:cblistify/tema/theme_pallete.dart';
 
-// Model sederhana untuk merepresentasikan sebuah event/tugas di kalender.
-// Ini membuat kode lebih bersih daripada menggunakan Map<String, dynamic>.
 class Event {
   final String id;
   final String title;
@@ -39,7 +35,6 @@ class _KalenderPageState extends State<KalenderPage> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
-  // ✅ BARU: State untuk menyimpan event dari database dan status loading.
   Map<DateTime, List<Event>> _events = {};
   bool _isLoading = true;
 
@@ -47,22 +42,16 @@ class _KalenderPageState extends State<KalenderPage> {
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
-    // ✅ BARU: Panggil fungsi untuk mengambil data dari database.
     _fetchTasks();
   }
   
-  // ✅ BARU: Fungsi untuk mengambil data tugas dari Supabase.
   Future<void> _fetchTasks() async {
-    // Tampilkan loading indicator saat data sedang diambil.
     if (mounted) setState(() => _isLoading = true);
 
     try {
       final supabase = Supabase.instance.client;
       final user = supabase.auth.currentUser;
       if (user == null) throw "Pengguna tidak login";
-
-      // Ambil semua tugas yang belum selesai milik pengguna.
-      // Pastikan nama tabel Anda adalah 'task' (tunggal) atau 'tasks' (jamak).
       final response = await supabase
           .from('task')
           .select('id, title, start_date, start_time, end_time')
@@ -73,15 +62,12 @@ class _KalenderPageState extends State<KalenderPage> {
 
       for (var taskData in response) {
         final date = DateTime.parse(taskData['start_date']);
-        // Gunakan DateTime.utc untuk menormalkan tanggal (menghilangkan komponen waktu)
-        // agar bisa digunakan sebagai kunci Map yang konsisten.
         final dayKey = DateTime.utc(date.year, date.month, date.day);
 
         if (newEvents[dayKey] == null) {
           newEvents[dayKey] = [];
         }
 
-        // Tambahkan event baru ke daftar.
         newEvents[dayKey]!.add(Event(
           id: taskData['id'],
           title: taskData['title'],
@@ -107,22 +93,19 @@ class _KalenderPageState extends State<KalenderPage> {
     }
   }
 
-  // Helper untuk mengubah string waktu (HH:mm:ss) menjadi TimeOfDay.
   TimeOfDay _parseTime(String timeString) {
     try {
       final parts = timeString.split(':');
       return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
     } catch (e) {
-      return const TimeOfDay(hour: 0, minute: 0); // Default jika format salah
+      return const TimeOfDay(hour: 0, minute: 0); 
     }
   }
 
   List<Event> _getEventsForDay(DateTime day) {
-    // Gunakan DateTime.utc untuk mencocokkan kunci yang sudah dinormalkan.
     return _events[DateTime.utc(day.year, day.month, day.day)] ?? [];
   }
   
-  // ✅ BARU: Helper untuk mendapatkan warna teks yang kontras dengan latar belakang.
   Color _getContrastingTextColor(Color backgroundColor) {
     return ThemeData.estimateBrightnessForColor(backgroundColor) == Brightness.dark
         ? Colors.white
@@ -134,7 +117,6 @@ class _KalenderPageState extends State<KalenderPage> {
     final palette = Provider.of<ThemeNotifier>(context).palette;
 
     return Scaffold(
-      // ✅ REFACTOR: Menggunakan warna dari palette.
       backgroundColor: palette.lighter,
       appBar: AppBar(
         title: Text("Kalender", style: TextStyle(color: _getContrastingTextColor(palette.base))),
@@ -144,10 +126,9 @@ class _KalenderPageState extends State<KalenderPage> {
       ),
       body: Column(
         children: [
-          // Widget Kalender
           _buildCalendar(palette),
           const SizedBox(height: 12),
-          // Judul untuk daftar event
+
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Row(
@@ -164,14 +145,11 @@ class _KalenderPageState extends State<KalenderPage> {
             ),
           ),
           const SizedBox(height: 8),
-          // Daftar Event
           _buildEventList(),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Navigasi ke halaman tambah tugas.
-          // ✅ BARU: Tambahkan .then() untuk me-refresh data setelah kembali.
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -186,7 +164,6 @@ class _KalenderPageState extends State<KalenderPage> {
     );
   }
 
-  // ✅ REFACTOR: Widget untuk membangun kalender
   Widget _buildCalendar(ThemePalette palette) {
     return Card(
       elevation: 4,
@@ -199,7 +176,7 @@ class _KalenderPageState extends State<KalenderPage> {
         lastDay: DateTime.utc(2030, 12, 31),
         focusedDay: _focusedDay,
         selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-        eventLoader: _getEventsForDay, // Menampilkan marker di bawah tanggal
+        eventLoader: _getEventsForDay, 
         onDaySelected: (selectedDay, focusedDay) {
           setState(() {
             _selectedDay = selectedDay;
@@ -219,7 +196,6 @@ class _KalenderPageState extends State<KalenderPage> {
             color: palette.darker.withOpacity(0.8),
             shape: BoxShape.circle,
           ),
-          // ✅ REFACTOR: Warna teks yang dipilih sekarang dinamis.
           selectedTextStyle: TextStyle(color: _getContrastingTextColor(palette.base)),
           todayTextStyle: TextStyle(color: palette.darker),
           weekendTextStyle: TextStyle(color: palette.base),
@@ -235,7 +211,6 @@ class _KalenderPageState extends State<KalenderPage> {
     );
   }
 
-  // ✅ REFACTOR: Widget untuk membangun daftar event di bawah kalender
   Widget _buildEventList() {
     if (_isLoading) {
       return const Expanded(child: Center(child: CircularProgressIndicator()));
@@ -259,7 +234,6 @@ class _KalenderPageState extends State<KalenderPage> {
     );
   }
 
-  // ✅ REFACTOR: Widget untuk satu kartu event
   Widget _buildEventCard(Event event) {
     final palette = Provider.of<ThemeNotifier>(context, listen: false).palette;
     return Card(
@@ -273,8 +247,6 @@ class _KalenderPageState extends State<KalenderPage> {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
-          // Navigasi ke halaman detail tugas
-          // ✅ BARU: Tambahkan .then() untuk me-refresh data setelah kembali.
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => DetailTugasPage(taskId: event.id)),
@@ -310,7 +282,6 @@ class _KalenderPageState extends State<KalenderPage> {
     );
   }
 
-  // ✅ REFACTOR: Widget untuk ditampilkan saat tidak ada event
   Widget _buildEmptyState() {
     return Expanded(
       child: Center(

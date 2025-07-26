@@ -61,11 +61,10 @@ class _ProfilPageState extends State<ProfilPage> {
     }
 
     try {
-      // Ambil semua task milik user ini
       final response = await supabase
           .from('task')
-          .select('is_completed') // hanya ambil status
-          .eq('user_id', user.id); // filter user
+          .select('is_completed') 
+          .eq('user_id', user.id); 
 
       final allTasks = response as List<dynamic>;
 
@@ -279,7 +278,6 @@ class _ProfilPageState extends State<ProfilPage> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Grafik batang transparan
           Opacity(
             opacity: 0.25,
             child: BarChart(
@@ -322,7 +320,7 @@ class _ProfilPageState extends State<ProfilPage> {
                     barRods: [
                       BarChartRodData(
                         toY: value,
-                        color: palette.base.withOpacity(0.6), // pastikan warnanya tidak full solid
+                        color: palette.base.withOpacity(0.6), 
                         width: 16,
                         borderRadius: BorderRadius.circular(6),
                         backDrawRodData: BackgroundBarChartRodData(
@@ -338,7 +336,6 @@ class _ProfilPageState extends State<ProfilPage> {
             ),
           ),
 
-          // Teks overlay
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,

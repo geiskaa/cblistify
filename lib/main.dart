@@ -14,8 +14,6 @@ void main() async {
 
   await GetStorage.init();
   await initializeDateFormatting('id_ID', null);
-
-  // Inisialisasi Supabase
   await Supabase.initialize(
     url: supabaseUrl,
     anonKey: supabaseAnonKey,
@@ -42,7 +40,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       home: const LoginPage(),
       theme: ThemeData(
-        scaffoldBackgroundColor: palette.lighter, // Warna latar dari tema
+        scaffoldBackgroundColor: palette.lighter,
         appBarTheme: AppBarTheme(
           backgroundColor: palette.base,
           foregroundColor: Colors.black,

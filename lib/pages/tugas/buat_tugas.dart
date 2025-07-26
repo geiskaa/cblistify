@@ -16,7 +16,7 @@ class _BuatTugasPageState extends State<BuatTugas> {
   final TextEditingController _judulController = TextEditingController();
   final TextEditingController _deskripsiController = TextEditingController();
 
-  String? selectedCategory; // ✅ diubah ke nullable
+  String? selectedCategory; 
   List<Map<String, dynamic>> categories = [];
   final String _addNewCategoryValue = '---tambah_kategori_baru---';
   DateTime _tanggal = DateTime.now();
@@ -126,7 +126,6 @@ class _BuatTugasPageState extends State<BuatTugas> {
               label: "Kategori",
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
-                  // ✅ fix: hindari crash jika selectedCategory tidak valid
                   value: categories.any((cat) => cat['id'] == selectedCategory)
                       ? selectedCategory
                       : null,
@@ -379,10 +378,8 @@ class _BuatTugasPageState extends State<BuatTugas> {
     );
   }
 
-// GANTI SELURUH FUNGSI INI DI detail_tugas.dart
-
   Future<void> _selectDate() async {
-    // `final picked` tidak lagi diperlukan karena dialog tidak mengembalikan nilai via Navigator.pop
+
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -391,13 +388,8 @@ class _BuatTugasPageState extends State<BuatTugas> {
           initialEndDate: _endTanggal,
           initialStartTime: _waktu,
           initialEndTime: _endWaktu,
-          // ✅ PERBAIKI: Sesuaikan urutan parameter dan tipe datanya agar cocok dengan kontrak baru
-          onConfirm: (DateTime startDate, TimeOfDay startTime, DateTime endDate, TimeOfDay endTime) {
-            
-            // Pengecekan null tidak lagi diperlukan karena callback menjamin nilainya.
-            // Kita bisa langsung menggunakan nilainya.
 
-            // Tambahan: Validasi agar waktu selesai tidak mendahului waktu mulai
+          onConfirm: (DateTime startDate, TimeOfDay startTime, DateTime endDate, TimeOfDay endTime) {
             final startDateTime = DateTime(startDate.year, startDate.month, startDate.day, startTime.hour, startTime.minute);
             final endDateTime = DateTime(endDate.year, endDate.month, endDate.day, endTime.hour, endTime.minute);
 
@@ -408,7 +400,7 @@ class _BuatTugasPageState extends State<BuatTugas> {
                   backgroundColor: Colors.orange,
                 ),
               );
-              return; // Jangan update jika tidak valid
+              return; 
             }
             
             setState(() {

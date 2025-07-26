@@ -11,7 +11,6 @@ class ThemePalette {
     required this.darker,
   });
 
-  // Factory: dari 1 warna dasar, buat versi terang dan gelap
   factory ThemePalette.fromBase(Color base) {
     final hsl = HSLColor.fromColor(base);
     return ThemePalette(

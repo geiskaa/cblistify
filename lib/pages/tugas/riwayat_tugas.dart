@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RiwayatTugasPage extends StatefulWidget {
-  final bool isCompleted; // true untuk selesai, false untuk tertunda
+  final bool isCompleted; 
   const RiwayatTugasPage({super.key, required this.isCompleted});
 
   @override

@@ -55,7 +55,6 @@ class _LoginPageState extends State<LoginPage> {
         password: password,
       );
 
-      // Jika tidak melempar error, berarti login berhasil
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => HomePage(selectedIndex: 2)),
@@ -223,7 +222,7 @@ class _LoginPageState extends State<LoginPage> {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: null, // <- fitur login Google dinonaktifkan
+                onPressed: null,
                 icon: Image.asset('assets/images/google.png', height: 24),
                 label: const Text(
                   'Masuk dengan Google',

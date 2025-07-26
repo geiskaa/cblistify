@@ -1,5 +1,3 @@
-// lib/models/profile_model.dart
-
 class Profile {
   final String id;
   final String username;

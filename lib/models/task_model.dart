@@ -7,11 +7,11 @@ class Task {
   final DateTime endDate;
   final String startTime;
   final String endTime;
-  final int priority; // diperbaiki dari String ke int
+  final int priority; 
   final DateTime createdAt;
   final DateTime? updatedAt;
   final String categoryId;
-  final bool isCompleted; // baru ditambahkan
+  final bool isCompleted; 
 
   Task({
     required this.id,
@@ -43,7 +43,7 @@ class Task {
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
       categoryId: json['category_id'],
-      isCompleted: json['is_completed'], // tambahkan
+      isCompleted: json['is_completed'], 
     );
   }
 
@@ -61,7 +61,7 @@ class Task {
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
       'category_id': categoryId,
-      'is_completed': isCompleted, // tambahkan
+      'is_completed': isCompleted, 
     };
   }
 }

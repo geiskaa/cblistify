@@ -41,12 +41,11 @@ class _ListTugasPageState extends State<ListTugasPage> {
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () async {
-              // Navigasi ke halaman buat tugas
               await Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const BuatTugas()),
               );
-              fetchTugas(); // Refresh setelah tambah
+              fetchTugas(); 
             },
           )
         ],
@@ -67,7 +66,7 @@ class _ListTugasPageState extends State<ListTugasPage> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => DetailTugasPage(
-                          taskId: tugas['id'], // langsung kirim UUID string
+                          taskId: tugas['id'], 
                         ),
                       ),
                     );

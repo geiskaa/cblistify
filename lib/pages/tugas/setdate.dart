@@ -1,18 +1,14 @@
-// lib/pages/tugas/setdate.dart
-
 import 'package:cblistify/tema/theme_notifier.dart';
 import 'package:cblistify/tema/theme_pallete.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-// Mendefinisikan "kontrak" yang jelas untuk callback.
-// Ini memastikan data yang dikirim kembali selalu lengkap dan tidak nullable.
 typedef DateTimeRangeConfirmCallback =
     void Function(
       DateTime startDate,
-      TimeOfDay startTime, // <-- #2 WAKTU
-      DateTime endDate, // <-- #3 TANGGAL
+      TimeOfDay startTime, 
+      DateTime endDate, 
       TimeOfDay endTime,
     );
 
@@ -40,7 +36,7 @@ class _DateTimePickerDialogState extends State<DateTimePickerDialog> {
   late DateTime _startDate, _endDate;
   late TimeOfDay _startTime, _endTime;
   late DateTime _currentMonth;
-  int _selectedTab = 0; // 0 untuk "Mulai", 1 untuk "Selesai"
+  int _selectedTab = 0; 
 
   @override
   void initState() {
@@ -49,22 +45,18 @@ class _DateTimePickerDialogState extends State<DateTimePickerDialog> {
     _startTime = widget.initialStartTime;
     _endDate = widget.initialEndDate;
     _endTime = widget.initialEndTime;
-    // Tampilkan bulan dari tanggal mulai saat pertama kali dibuka.
     _currentMonth = DateTime(_startDate.year, _startDate.month, 1);
   }
 
-  // Logika untuk memilih tanggal berdasarkan tab yang aktif.
   void _selectDate(DateTime date) {
     setState(() {
       if (_selectedTab == 0) {
         _startDate = date;
-        // Jika tanggal mulai melewati tanggal selesai, samakan tanggal selesai.
         if (_startDate.isAfter(_endDate)) {
           _endDate = _startDate;
         }
       } else {
         _endDate = date;
-        // Jika tanggal selesai mendahului tanggal mulai, samakan tanggal mulai.
         if (_endDate.isBefore(_startDate)) {
           _startDate = _endDate;
         }
@@ -72,13 +64,11 @@ class _DateTimePickerDialogState extends State<DateTimePickerDialog> {
     });
   }
 
-  // Logika untuk menampilkan Time Picker.
   void _selectTime() async {
     final pickedTime = await showTimePicker(
       context: context,
       initialTime: _selectedTab == 0 ? _startTime : _endTime,
       builder: (context, child) {
-        // Builder ini memastikan time picker mengikuti tema aplikasi.
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
           child: Theme(
@@ -109,7 +99,6 @@ class _DateTimePickerDialogState extends State<DateTimePickerDialog> {
 
   @override
   Widget build(BuildContext context) {
-    // Ambil palet tema dari Provider.
     final palette = Provider.of<ThemeNotifier>(context).palette;
 
     return Dialog(
@@ -135,7 +124,6 @@ class _DateTimePickerDialogState extends State<DateTimePickerDialog> {
     );
   }
 
-  // Widget untuk header bulan (Contoh: "Juli 2025")
   Widget _buildHeader() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -152,7 +140,6 @@ class _DateTimePickerDialogState extends State<DateTimePickerDialog> {
           icon: const Icon(Icons.chevron_left, color: Colors.black54),
         ),
         Text(
-          // Menggunakan intl untuk format bulan dan tahun yang benar (Bahasa Indonesia).
           DateFormat('MMMM yyyy', 'id_ID').format(_currentMonth),
           style: const TextStyle(
             fontSize: 18,
@@ -175,7 +162,6 @@ class _DateTimePickerDialogState extends State<DateTimePickerDialog> {
     );
   }
 
-  // Widget untuk membangun seluruh bagian kalender.
   Widget _buildCalendar(ThemePalette palette) {
     return Column(
       children: [
@@ -200,7 +186,6 @@ class _DateTimePickerDialogState extends State<DateTimePickerDialog> {
     );
   }
 
-  // Fungsi untuk membuat baris-baris tanggal dalam kalender.
   List<Widget> _buildCalendarRows(ThemePalette palette) {
     List<Widget> rows = [];
     DateTime firstDayOfMonth = DateTime(
@@ -229,7 +214,6 @@ class _DateTimePickerDialogState extends State<DateTimePickerDialog> {
           date.day == _endDate.day;
       final isInRange = date.isAfter(_startDate) && date.isBefore(_endDate);
 
-      // Logika pewarnaan yang lebih baik untuk rentang tanggal.
       Color bgColor = Colors.transparent;
       Color fgColor = Colors.black87;
 
@@ -265,7 +249,6 @@ class _DateTimePickerDialogState extends State<DateTimePickerDialog> {
       );
     }
 
-    // Mengelompokkan widget tanggal ke dalam baris-baris.
     for (int i = 0; i < days.length; i += 7) {
       rows.add(
         Padding(
@@ -283,7 +266,7 @@ class _DateTimePickerDialogState extends State<DateTimePickerDialog> {
     return rows;
   }
 
-  // Widget untuk tombol Batal dan Simpan.
+
   Widget _buildActionButtons(ThemePalette palette) {
     return Row(
       children: [
@@ -300,7 +283,6 @@ class _DateTimePickerDialogState extends State<DateTimePickerDialog> {
         Expanded(
           child: ElevatedButton(
             onPressed: () {
-              // Kirim kembali data yang sudah pasti (non-nullable).
               widget.onConfirm(_startDate, _startTime, _endDate, _endTime);
               Navigator.pop(context);
             },
@@ -322,7 +304,6 @@ class _DateTimePickerDialogState extends State<DateTimePickerDialog> {
     );
   }
 
-  // Widget untuk header tab "Mulai" dan "Selesai".
   Widget _buildTimeSectionHeader(ThemePalette palette) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -333,7 +314,6 @@ class _DateTimePickerDialogState extends State<DateTimePickerDialog> {
     );
   }
 
-  // Widget untuk membuat satu tab.
   Widget _buildTimeTab(String title, int index, ThemePalette palette) {
     final bool isSelected = _selectedTab == index;
     return GestureDetector(
@@ -364,7 +344,6 @@ class _DateTimePickerDialogState extends State<DateTimePickerDialog> {
     );
   }
 
-  // Widget untuk menampilkan pilihan tanggal dan waktu saat ini.
   Widget _buildDateTimeSelector(ThemePalette palette) {
     final date = _selectedTab == 0 ? _startDate : _endDate;
     final time = _selectedTab == 0 ? _startTime : _endTime;

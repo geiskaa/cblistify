@@ -1,5 +1,5 @@
 class Category {
-  final String id; // UUID → ubah dari int ke String
+  final String id; 
   final DateTime createdAt;
   final String userId;
   final String category;

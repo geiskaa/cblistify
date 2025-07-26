@@ -1,5 +1,3 @@
-// lib/pages/tugas/detail_tugas.dart
-
 import 'package:cblistify/pages/tugas/setdate.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -25,7 +23,6 @@ class _DetailTugasPageState extends State<DetailTugasPage> {
   DateTime _endTanggal = DateTime.now();
   TimeOfDay _endWaktu = TimeOfDay.now();
 
-  // ✅ DIUBAH: dari Set<String> menjadi String
   String _prioritas = "Sedang";
   final List<String> _prioritasList = ["Tinggi", "Sedang", "Rendah"];
 
@@ -68,8 +65,6 @@ class _DetailTugasPageState extends State<DetailTugasPage> {
           _endTanggal = DateTime.parse(response['end_date']);
           _endWaktu = _parseTime(response['end_time']);
           _selectedCategoryId = response['category_id'];
-
-          // ✅ DIUBAH: Konversi nilai prioritas dari integer ke String
           _prioritas = _mapPriorityIntToString(response['priority']);
         });
       }
@@ -90,13 +85,12 @@ class _DetailTugasPageState extends State<DetailTugasPage> {
           .order('created_at');
 
       if (mounted) {
-        // ✅ DISESUAIKAN: Key diubah agar cocok dengan widget builder
         final List<Map<String, dynamic>> dbCategories =
             (response as List)
                 .map(
                   (item) => {
                     'id': item['id'],
-                    'name': item['category'], // Menggunakan key 'name'
+                    'name': item['category'], 
                   },
                 )
                 .toList();
@@ -119,7 +113,6 @@ class _DetailTugasPageState extends State<DetailTugasPage> {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) throw "Pengguna tidak login";
 
-      // ✅ DIUBAH: Logika konversi prioritas disamakan dengan buat_tugas.dart
       final int priorityValue =
           _prioritas == 'Tinggi'
               ? 3
@@ -151,7 +144,7 @@ class _DetailTugasPageState extends State<DetailTugasPage> {
           backgroundColor: Colors.green,
         ),
       );
-      Navigator.pop(context, true); // Kirim sinyal sukses
+      Navigator.pop(context, true); 
     } catch (e) {
       _showErrorSnackBar("Gagal memperbarui tugas: $e");
     } finally {
@@ -211,8 +204,6 @@ class _DetailTugasPageState extends State<DetailTugasPage> {
     }
   }
 
-  // --- Helper Functions ---
-
   TimeOfDay _parseTime(String timeString) {
     try {
       final parts = timeString.split(':');
@@ -228,7 +219,6 @@ class _DetailTugasPageState extends State<DetailTugasPage> {
     return "Rendah";
   }
 
-  // ✅ DIUBAH: Nama fungsi disamakan dengan buat_tugas.dart, logika di dalamnya sudah benar
   Future<void> _selectDate() async {
     await Navigator.push(
       context,
@@ -292,11 +282,8 @@ class _DetailTugasPageState extends State<DetailTugasPage> {
     return DateFormat('HH:mm:ss').format(dt);
   }
 
-  // --- WIDGET BUILDER BARU (Dicopy dari BuatTugas) ---
-
   @override
   Widget build(BuildContext context) {
-    // ✅ DIUBAH: Menggunakan Theme.of(context) agar konsisten
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -510,8 +497,6 @@ class _DetailTugasPageState extends State<DetailTugasPage> {
               ),
     );
   }
-
-  // --- Widget Builder Helpers (Dicopy dari BuatTugas) ---
 
   Widget _buildSectionHeader(IconData icon, String label) {
     final theme = Theme.of(context);

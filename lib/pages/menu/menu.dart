@@ -97,7 +97,7 @@ class DrawerMenu extends StatelessWidget {
             TextButton(
               child: Text('Batal', style: TextStyle(color: Colors.grey[700])),
               onPressed: () {
-                Navigator.of(dialogContext).pop(); // Tutup dialog
+                Navigator.of(dialogContext).pop(); 
               },
             ),
             ElevatedButton(
@@ -108,11 +108,10 @@ class DrawerMenu extends StatelessWidget {
               child: const Text('Logout', style: TextStyle(color: Colors.white)),
               onPressed: () async {
                 try {
-                  Navigator.of(dialogContext).pop(); // Tutup dialog dulu
+                  Navigator.of(dialogContext).pop(); 
 
                   final response = await Supabase.instance.client.auth.signOut();
 
-                  // Setelah logout, hapus semua halaman sebelumnya dan arahkan ke Login
                   Navigator.pushAndRemoveUntil(
                     parentContext,
                     MaterialPageRoute(builder: (context) => const LoginPage()),

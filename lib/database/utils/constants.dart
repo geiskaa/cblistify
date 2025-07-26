@@ -1,5 +1,2 @@
-// lib/utils/constants.dart
-
-// GANTI DENGAN URL DAN ANON KEY DARI PROYEK SUPABASE ANDA
 const String supabaseUrl = 'https://fkgyhwhxwawcqefdouwv.supabase.co';
 const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZrZ3lod2h4d2F3Y3FlZmRvdXd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI4MDcxMjcsImV4cCI6MjA2ODM4MzEyN30._zDHvqSBemPocAyLHKnWWYMMoq1dEI9CtQbYNuQw9Go';
