@@ -1,17 +1,30 @@
+import 'package:cblistify/tema/theme_notifier.dart';
+import 'package:cblistify/tema/theme_pallete.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+
+typedef DateTimeRangeConfirmCallback =
+    void Function(
+      DateTime startDate,
+      TimeOfDay startTime, 
+      DateTime endDate, 
+      TimeOfDay endTime,
+    );
 
 class DateTimePickerDialog extends StatefulWidget {
-  final DateTime? initialStartDate;
-  final DateTime? initialEndDate;
-  final TimeOfDay? initialStartTime;
-  final TimeOfDay? initialEndTime;
-  final Function(DateTime?, DateTime?, TimeOfDay?, TimeOfDay?) onConfirm;
+  final DateTime initialStartDate;
+  final TimeOfDay initialStartTime;
+  final DateTime initialEndDate;
+  final TimeOfDay initialEndTime;
+  final DateTimeRangeConfirmCallback onConfirm;
 
-  DateTimePickerDialog({
-    this.initialStartDate,
-    this.initialEndDate,
-    this.initialStartTime,
-    this.initialEndTime,
+  const DateTimePickerDialog({
+    super.key,
+    required this.initialStartDate,
+    required this.initialStartTime,
+    required this.initialEndDate,
+    required this.initialEndTime,
     required this.onConfirm,
   });
 
@@ -20,272 +33,214 @@ class DateTimePickerDialog extends StatefulWidget {
 }
 
 class _DateTimePickerDialogState extends State<DateTimePickerDialog> {
-  DateTime? startDate;
-  DateTime? endDate;
-  TimeOfDay? startTime;
-  TimeOfDay? endTime;
-  
-  late DateTime currentMonth;
+  late DateTime _startDate, _endDate;
+  late TimeOfDay _startTime, _endTime;
+  late DateTime _currentMonth;
+  int _selectedTab = 0; 
 
   @override
   void initState() {
     super.initState();
-    startDate = widget.initialStartDate;
-    endDate = widget.initialEndDate;
-    startTime = widget.initialStartTime ?? TimeOfDay(hour: 6, minute: 0);
-    endTime = widget.initialEndTime ?? TimeOfDay(hour: 6, minute: 0);
-    currentMonth = DateTime.now();
+    _startDate = widget.initialStartDate;
+    _startTime = widget.initialStartTime;
+    _endDate = widget.initialEndDate;
+    _endTime = widget.initialEndTime;
+    _currentMonth = DateTime(_startDate.year, _startDate.month, 1);
+  }
+
+  void _selectDate(DateTime date) {
+    setState(() {
+      if (_selectedTab == 0) {
+        _startDate = date;
+        if (_startDate.isAfter(_endDate)) {
+          _endDate = _startDate;
+        }
+      } else {
+        _endDate = date;
+        if (_endDate.isBefore(_startDate)) {
+          _startDate = _endDate;
+        }
+      }
+    });
+  }
+
+  void _selectTime() async {
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: _selectedTab == 0 ? _startTime : _endTime,
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: ColorScheme.light(
+                primary:
+                    Provider.of<ThemeNotifier>(
+                      context,
+                      listen: false,
+                    ).palette.base,
+              ),
+            ),
+            child: child!,
+          ),
+        );
+      },
+    );
+    if (pickedTime != null) {
+      setState(() {
+        if (_selectedTab == 0) {
+          _startTime = pickedTime;
+        } else {
+          _endTime = pickedTime;
+        }
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final palette = Provider.of<ThemeNotifier>(context).palette;
+
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        padding: EdgeInsets.all(20),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      backgroundColor: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'Set Tanggal Waktu',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-              ),
-            ),
-            SizedBox(height: 16),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      currentMonth = DateTime(currentMonth.year, currentMonth.month - 1);
-                    });
-                  },
-                  icon: Icon(Icons.chevron_left),
-                ),
-                Text(
-                  '${_getMonthName(currentMonth.month)} ${currentMonth.year}',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      currentMonth = DateTime(currentMonth.year, currentMonth.month + 1);
-                    });
-                  },
-                  icon: Icon(Icons.chevron_right),
-                ),
-              ],
-            ),
-            
-            // Date Range Display
-            Container(
-              padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-              decoration: BoxDecoration(
-                color: Color(0xFFF8F9FA),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    startDate != null ? '${startDate!.day}/${startDate!.month}/${startDate!.year}' : '-',
-                    style: TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                  Text(' - '),
-                  Text(
-                    endDate != null ? '${endDate!.day}/${endDate!.month}/${endDate!.year}' : '-',
-                    style: TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 16),
-
-            // Calendar Grid
-            _buildCalendarGrid(),
-            SizedBox(height: 20),
-
-            // Time Selector
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.circle, color: Color(0xFFFF69B4), size: 8),
-                          SizedBox(width: 8),
-                          Text('Waktu Mulai', style: TextStyle(fontSize: 12)),
-                        ],
-                      ),
-                      SizedBox(height: 8),
-                      GestureDetector(
-                        onTap: () => _selectTime(true),
-                        child: Container(
-                          padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                          decoration: BoxDecoration(
-                            color: Color(0xFFFFB6C1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '${startTime!.hour.toString().padLeft(2, '0')} : ${startTime!.minute.toString().padLeft(2, '0')}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.circle, color: Color(0xFFFF69B4), size: 8),
-                          SizedBox(width: 8),
-                          Text('Waktu Selesai', style: TextStyle(fontSize: 12)),
-                        ],
-                      ),
-                      SizedBox(height: 8),
-                      GestureDetector(
-                        onTap: () => _selectTime(false),
-                        child: Container(
-                          padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                          decoration: BoxDecoration(
-                            color: Color(0xFFFFB6C1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '${endTime!.hour.toString().padLeft(2, '0')} : ${endTime!.minute.toString().padLeft(2, '0')}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 20),
-
-            // Action Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(
-                      'Batal',
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                  ),
-                ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      widget.onConfirm(startDate, endDate, startTime, endTime);
-                      Navigator.pop(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFFFF69B4),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: Text('Simpan', style: TextStyle(color: Colors.white)),
-                  ),
-                ),
-              ],
-            ),
+            _buildHeader(),
+            const SizedBox(height: 16),
+            _buildCalendar(palette),
+            const Divider(height: 32),
+            _buildTimeSectionHeader(palette),
+            const SizedBox(height: 12),
+            _buildDateTimeSelector(palette),
+            const SizedBox(height: 24),
+            _buildActionButtons(palette),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCalendarGrid() {
-    return Column(
+  Widget _buildHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        // Header hari
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Mig']
-              .map((day) => Container(
-                    width: 32,
-                    child: Text(
-                      day,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w500,
-                      ),
+        IconButton(
+          onPressed:
+              () => setState(
+                () =>
+                    _currentMonth = DateTime(
+                      _currentMonth.year,
+                      _currentMonth.month - 1,
                     ),
-                  ))
-              .toList(),
+              ),
+          icon: const Icon(Icons.chevron_left, color: Colors.black54),
         ),
-        SizedBox(height: 8),
-        
-        ..._buildCalendarRows(),
+        Text(
+          DateFormat('MMMM yyyy', 'id_ID').format(_currentMonth),
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        IconButton(
+          onPressed:
+              () => setState(
+                () =>
+                    _currentMonth = DateTime(
+                      _currentMonth.year,
+                      _currentMonth.month + 1,
+                    ),
+              ),
+          icon: const Icon(Icons.chevron_right, color: Colors.black54),
+        ),
       ],
     );
   }
 
-  List<Widget> _buildCalendarRows() {
+  Widget _buildCalendar(ThemePalette palette) {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children:
+              ['S', 'S', 'R', 'K', 'J', 'S', 'M']
+                  .map(
+                    (day) => Text(
+                      day,
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  )
+                  .toList(),
+        ),
+        const SizedBox(height: 12),
+        ..._buildCalendarRows(palette),
+      ],
+    );
+  }
+
+  List<Widget> _buildCalendarRows(ThemePalette palette) {
     List<Widget> rows = [];
-    DateTime firstDay = DateTime(currentMonth.year, currentMonth.month, 1);
-    DateTime lastDay = DateTime(currentMonth.year, currentMonth.month + 1, 0);
-    
-    int startWeekday = firstDay.weekday;
-    int daysInMonth = lastDay.day;
-    
-    List<Widget> days = [];
-    
-    // Hari kosong di awal bulan
-    for (int i = 1; i < startWeekday; i++) {
-      days.add(Container(width: 32, height: 32));
-    }
-    
-    // Hari dalam bulan
+    DateTime firstDayOfMonth = DateTime(
+      _currentMonth.year,
+      _currentMonth.month,
+      1,
+    );
+    int startWeekday = firstDayOfMonth.weekday;
+    int daysInMonth =
+        DateTime(_currentMonth.year, _currentMonth.month + 1, 0).day;
+
+    List<Widget> days = List.generate(
+      startWeekday - 1,
+      (_) => const SizedBox(width: 36, height: 36),
+    );
+
     for (int day = 1; day <= daysInMonth; day++) {
-      DateTime date = DateTime(currentMonth.year, currentMonth.month, day);
-      bool isSelected = (startDate != null && _isSameDay(date, startDate!)) ||
-                       (endDate != null && _isSameDay(date, endDate!));
-      bool isInRange = _isInDateRange(date);
-      
+      final date = DateTime(_currentMonth.year, _currentMonth.month, day);
+      final isStartDate =
+          date.year == _startDate.year &&
+          date.month == _startDate.month &&
+          date.day == _startDate.day;
+      final isEndDate =
+          date.year == _endDate.year &&
+          date.month == _endDate.month &&
+          date.day == _endDate.day;
+      final isInRange = date.isAfter(_startDate) && date.isBefore(_endDate);
+
+      Color bgColor = Colors.transparent;
+      Color fgColor = Colors.black87;
+
+      if (isStartDate || isEndDate) {
+        bgColor = palette.base;
+        fgColor = Colors.white;
+      } else if (isInRange) {
+        bgColor = palette.base.withOpacity(0.1);
+        fgColor = palette.base;
+      }
+
       days.add(
         GestureDetector(
           onTap: () => _selectDate(date),
           child: Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: isSelected 
-                  ? Color(0xFFFF69B4) 
-                  : isInRange 
-                      ? Color(0xFFFFB6C1) 
-                      : Colors.transparent,
-              shape: BoxShape.circle,
-            ),
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle),
             child: Center(
               child: Text(
                 day.toString(),
                 style: TextStyle(
-                  color: isSelected || isInRange ? Colors.white : Colors.black,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: fgColor,
+                  fontWeight:
+                      isStartDate || isEndDate
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                 ),
               ),
             ),
@@ -293,89 +248,161 @@ class _DateTimePickerDialogState extends State<DateTimePickerDialog> {
         ),
       );
     }
-    
-    // Buat rows dengan 7 kolom
+
     for (int i = 0; i < days.length; i += 7) {
-      int end = (i + 7 < days.length) ? i + 7 : days.length;
       rows.add(
         Padding(
-          padding: EdgeInsets.symmetric(vertical: 2),
+          padding: const EdgeInsets.symmetric(vertical: 4.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: days.sublist(i, end),
+            children: days.sublist(
+              i,
+              (i + 7 > days.length) ? days.length : i + 7,
+            ),
           ),
         ),
       );
     }
-    
     return rows;
   }
 
-  void _selectDate(DateTime date) {
-    setState(() {
-      if (startDate == null || (endDate != null && date.isBefore(startDate!))) {
-        startDate = date;
-        endDate = null;
-      } else if (endDate == null) {
-        if (date.isAfter(startDate!) || date.isAtSameMomentAs(startDate!)) {
-          endDate = date;
-        } else {
-          endDate = startDate;
-          startDate = date;
-        }
-      } else {
-        startDate = date;
-        endDate = null;
-      }
-    });
-  }
 
-  void _selectTime(bool isStartTime) async {
-    TimeOfDay? pickedTime = await showTimePicker(
-      context: context,
-      initialTime: isStartTime ? startTime! : endTime!,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: Color(0xFFFF69B4),
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Colors.black,
+  Widget _buildActionButtons(ThemePalette palette) {
+    return Row(
+      children: [
+        Expanded(
+          child: TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Batal',
+              style: TextStyle(color: Colors.grey[600], fontSize: 16),
             ),
           ),
-          child: child!,
-        );
-      },
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton(
+            onPressed: () {
+              widget.onConfirm(_startDate, _startTime, _endDate, _endTime);
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: palette.base,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            child: const Text(
+              'Simpan',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+      ],
     );
-
-    if (pickedTime != null) {
-      setState(() {
-        if (isStartTime) {
-          startTime = pickedTime;
-        } else {
-          endTime = pickedTime;
-        }
-      });
-    }
   }
 
-  bool _isSameDay(DateTime date1, DateTime date2) {
-    return date1.year == date2.year &&
-           date1.month == date2.month &&
-           date1.day == date2.day;
+  Widget _buildTimeSectionHeader(ThemePalette palette) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        _buildTimeTab("Mulai", 0, palette),
+        _buildTimeTab("Selesai", 1, palette),
+      ],
+    );
   }
 
-  bool _isInDateRange(DateTime date) {
-    if (startDate == null || endDate == null) return false;
-    return date.isAfter(startDate!) && date.isBefore(endDate!);
+  Widget _buildTimeTab(String title, int index, ThemePalette palette) {
+    final bool isSelected = _selectedTab == index;
+    return GestureDetector(
+      onTap:
+          () => setState(() {
+            _selectedTab = index;
+            final dateToView = index == 0 ? _startDate : _endDate;
+            _currentMonth = DateTime(dateToView.year, dateToView.month, 1);
+          }),
+      child: Column(
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              color: isSelected ? Colors.black87 : Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Container(
+            height: 3,
+            width: 40,
+            color: isSelected ? palette.base : Colors.transparent,
+          ),
+        ],
+      ),
+    );
   }
 
-  String _getMonthName(int month) {
-    const months = [
-      '', 'Januari', 'Februari', 'Maret', 'April', 'Mai', 'Juni',
-      'Juli', 'Augustus', 'September', 'Oktober', 'November', 'Desember'
-    ];
-    return months[month];
+  Widget _buildDateTimeSelector(ThemePalette palette) {
+    final date = _selectedTab == 0 ? _startDate : _endDate;
+    final time = _selectedTab == 0 ? _startTime : _endTime;
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.calendar_today, color: palette.base, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  DateFormat('dd MMM yyyy', 'id_ID').format(date),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: InkWell(
+            onTap: _selectTime,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.access_time, color: palette.base, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    time.format(context),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

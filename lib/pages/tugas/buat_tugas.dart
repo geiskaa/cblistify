@@ -1,487 +1,466 @@
 import 'package:flutter/material.dart';
-import 'setdate.dart'; 
+import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
+import 'package:cblistify/pages/tugas/setdate.dart';
 
-class CreateTaskPage extends StatefulWidget {
+class BuatTugas extends StatefulWidget {
+  final DateTime? selectedDate;
+  const BuatTugas({super.key, this.selectedDate});
+
   @override
-  _CreateTaskPageState createState() => _CreateTaskPageState();
+  _BuatTugasPageState createState() => _BuatTugasPageState();
 }
 
-class _CreateTaskPageState extends State<CreateTaskPage> {
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
-  
-  String selectedCategory = 'STUDY';
-  String selectedPriority = 'Medium';
-  DateTime? selectedStartDate;
-  DateTime? selectedEndDate;
-  TimeOfDay? startTime;
-  TimeOfDay? endTime;
-  bool enableReminder = false;
+class _BuatTugasPageState extends State<BuatTugas> {
+  final TextEditingController _judulController = TextEditingController();
+  final TextEditingController _deskripsiController = TextEditingController();
 
-  final List<Map<String, dynamic>> categories = [
-    {'name': 'STUDY', 'color': Color(0xFFFFB6C1), 'icon': Icons.school},
-    {'name': 'WORK', 'color': Color(0xFFE6E6FA), 'icon': Icons.work},
-    {'name': 'SPORT', 'color': Color(0xFFB0E0E6), 'icon': Icons.sports},
-  ];
+  String? selectedCategory; 
+  List<Map<String, dynamic>> categories = [];
+  final String _addNewCategoryValue = '---tambah_kategori_baru---';
+  DateTime _tanggal = DateTime.now();
+  TimeOfDay _waktu = TimeOfDay.now();
+  DateTime _endTanggal = DateTime.now();
+  TimeOfDay _endWaktu = TimeOfDay.now();
 
-  final List<String> priorities = ['Low', 'Medium', 'High'];
-  final Map<String, Color> priorityColors = {
-    'Low': Colors.green,
-    'Medium': Colors.orange,
-    'High': Colors.red,
-  };
+
+  String _prioritas = "Sedang";
+  final List<String> _prioritasList = ["Tinggi", "Sedang", "Rendah"];
+
+  @override
+  void initState() {
+    super.initState();
+    _tanggal = widget.selectedDate ?? DateTime.now();
+    _waktu = TimeOfDay.fromDateTime(widget.selectedDate ?? DateTime.now());
+    _fetchCategoriesFromDatabase();
+  }
+
+  Future<void> _fetchCategoriesFromDatabase() async {
+    final supabase = Supabase.instance.client;
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    final response = await supabase
+        .from('categories')
+        .select()
+        .or('is_global.eq.true,user_id.eq.${user.id}')
+        .order('created_at');
+
+    final List<Map<String, dynamic>> dbCategories = (response as List)
+        .map((item) => {
+              'id': item['id'],
+              'name': item['category'],
+            })
+        .toList();
+
+    setState(() {
+      categories = dbCategories;
+      if (categories.isNotEmpty) {
+        selectedCategory = categories.first['id'];
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
+        iconTheme: IconThemeData(color: theme.iconTheme.color),
         title: Text(
-          'Buat Tugas Baru',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
+          "Buat Tugas Baru",
+          style: TextStyle(color: theme.textTheme.bodyLarge?.color),
         ),
-        centerTitle: true,
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _simpanTugas,
+        backgroundColor: theme.primaryColor,
+        icon: const Icon(Icons.save, color: Colors.white),
+        label: const Text("Simpan Tugas", style: TextStyle(color: Colors.white)),
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Judul Tugas
-            _buildSectionTitle('Judul Tugas'),
-            SizedBox(height: 8),
-            _buildTextField(
-              controller: _titleController,
-              hint: 'Masukkan judul tugas...',
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: _judulController,
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      hintText: "Judul Tugas",
+                      hintStyle: TextStyle(color: theme.hintColor),
+                    ),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const Divider(),
+                  TextField(
+                    controller: _deskripsiController,
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      hintText: "Masukkan Deskripsi Tugas Anda (Opsional)",
+                      hintStyle: TextStyle(color: theme.hintColor),
+                    ),
+                    maxLines: 3,
+                  ),
+                ],
+              ),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 24),
 
-            // Deskripsi
-            _buildSectionTitle('Deskripsi (Opsional)'),
-            SizedBox(height: 8),
-            _buildTextField(
-              controller: _descriptionController,
-              hint: 'Masukkan deskripsi tugas...',
-              maxLines: 3,
+            _buildCustomDropdown(
+              icon: Icons.category_outlined,
+              label: "Kategori",
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: categories.any((cat) => cat['id'] == selectedCategory)
+                      ? selectedCategory
+                      : null,
+                  isExpanded: true,
+                  dropdownColor: theme.cardColor,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
+                    fontSize: 16,
+                  ),
+                  items: [
+                    ...categories.map((category) {
+                      return DropdownMenuItem<String>(
+                        value: category['id'],
+                        child: Text(category['name']),
+                      );
+                    }).toList(),
+                    const DropdownMenuItem<String>(
+                      enabled: false,
+                      child: Divider(height: 0),
+                    ),
+                    DropdownMenuItem<String>(
+                      value: _addNewCategoryValue,
+                      child: Row(
+                        children: [
+                          Icon(Icons.add, color: theme.primaryColor, size: 20),
+                          const SizedBox(width: 8),
+                          Text("Buat Kategori Baru", style: TextStyle(color: theme.primaryColor)),
+                        ],
+                      ),
+                    ),
+                  ],
+                  onChanged: (val) {
+                    if (val == _addNewCategoryValue) {
+                      _showAddCategoryDialog();
+                    } else if (val != null) {
+                      setState(() => selectedCategory = val);
+                    }
+                  },
+                ),
+              ),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 24),
 
-            // Pilih Kategori
-            _buildSectionTitle('Pilih Kategori'),
-            SizedBox(height: 12),
-            _buildCategorySelector(),
-            SizedBox(height: 20),
+            _buildSectionHeader(Icons.schedule_outlined, "Waktu Pelaksanaan"),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                    child: _buildTimeRow("Starts", _tanggal, _waktu, onTap: _selectDate),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Divider(height: 1),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                    child: _buildTimeRow(
+                      "Ends",
+                      _endTanggal,
+                      _endWaktu,
+                      onTap: _selectDate,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
 
-            // Pilih Tanggal dan Waktu
-            _buildSectionTitle('Pilih Tanggal dan Waktu'),
-            SizedBox(height: 12),
-            _buildDateTimeSelector(),
-            SizedBox(height: 20),
-
-            // Pilih Prioritas
-            _buildSectionTitle('Pilih Prioritas'),
-            SizedBox(height: 12),
-            _buildPrioritySelector(),
-            SizedBox(height: 20),
-
-            // Pengaturan Pengingat
-            _buildReminderToggle(),
-            SizedBox(height: 40),
-
-            // Tombol Buat Tugas
-            _buildCreateButton(),
+            _buildCustomDropdown(
+              icon: Icons.flag_outlined,
+              label: "Prioritas",
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _prioritas,
+                  isExpanded: true,
+                  dropdownColor: theme.cardColor,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
+                    fontSize: 16,
+                  ),
+                  items: _prioritasList.map((val) {
+                    return DropdownMenuItem<String>(
+                      value: val,
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.circle,
+                            size: 12,
+                            color: val == "Tinggi"
+                                ? Colors.red
+                                : val == "Sedang"
+                                    ? Colors.orange
+                                    : Colors.green,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(val),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) setState(() => _prioritas = val);
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 80),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-        color: Colors.black87,
-      ),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String hint,
-    int maxLines = 1,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Color(0xFFE9ECEF)),
-      ),
-      child: TextField(
-        controller: controller,
-        maxLines: maxLines,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: TextStyle(color: Colors.grey[500]),
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.all(16),
+  Widget _buildSectionHeader(IconData icon, String label) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(icon, color: theme.iconTheme.color, size: 20),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
-      ),
+      ],
     );
   }
 
-  Widget _buildCategorySelector() {
-    return Row(
-      children: categories.map((category) {
-        bool isSelected = selectedCategory == category['name'];
-        return Expanded(
-          child: GestureDetector(
-            onTap: () {
-              setState(() {
-                selectedCategory = category['name'];
-              });
-            },
-            child: Container(
-              margin: EdgeInsets.only(right: 8),
-              padding: EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(
-                color: isSelected ? category['color'] : Color(0xFFF8F9FA),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isSelected ? category['color'] : Color(0xFFE9ECEF),
-                  width: isSelected ? 2 : 1,
-                ),
-              ),
-              child: Column(
-                children: [
-                  Icon(
-                    category['icon'],
-                    color: isSelected ? Colors.white : Colors.grey[600],
-                    size: 24,
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    category['name'],
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.grey[600],
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildDateTimeSelector() {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Color(0xFFE9ECEF)),
-      ),
-      child: Column(
-        children: [
-          // Date Range
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => _showDateTimePicker(),
-                  child: Container(
-                    padding: EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Color(0xFFE9ECEF)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Tanggal Mulai',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          selectedStartDate != null
-                              ? '${selectedStartDate!.day}/${selectedStartDate!.month}/${selectedStartDate!.year}'
-                              : 'Pilih tanggal',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        if (startTime != null) ...[
-                          SizedBox(height: 4),
-                          Text(
-                            '${startTime!.hour.toString().padLeft(2, '0')}:${startTime!.minute.toString().padLeft(2, '0')}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFFFF69B4),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(width: 12),
-              Text('-', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              SizedBox(width: 12),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => _showDateTimePicker(),
-                  child: Container(
-                    padding: EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Color(0xFFE9ECEF)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Tanggal Selesai',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          selectedEndDate != null
-                              ? '${selectedEndDate!.day}/${selectedEndDate!.month}/${selectedEndDate!.year}'
-                              : 'Pilih tanggal',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        if (endTime != null) ...[
-                          SizedBox(height: 4),
-                          Text(
-                            '${endTime!.hour.toString().padLeft(2, '0')}:${endTime!.minute.toString().padLeft(2, '0')}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFFFF69B4),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPrioritySelector() {
-    return Row(
-      children: priorities.map((priority) {
-        bool isSelected = selectedPriority == priority;
-        return Expanded(
-          child: GestureDetector(
-            onTap: () {
-              setState(() {
-                selectedPriority = priority;
-              });
-            },
-            child: Container(
-              margin: EdgeInsets.only(right: 8),
-              padding: EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: isSelected ? priorityColors[priority] : Color(0xFFF8F9FA),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: isSelected ? priorityColors[priority]! : Color(0xFFE9ECEF),
-                  width: isSelected ? 2 : 1,
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: isSelected ? Colors.white : priorityColors[priority],
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    priority,
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black87,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildReminderToggle() {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Color(0xFFE9ECEF)),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.notifications_outlined,
-            color: Color(0xFFFF69B4),
-            size: 24,
-          ),
-          SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Dapatkan Pengingat',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: Colors.black87,
-              ),
-            ),
-          ),
-          Switch(
-            value: enableReminder,
-            onChanged: (value) {
-              setState(() {
-                enableReminder = value;
-              });
-            },
-            activeColor: Color(0xFFFF69B4),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCreateButton() {
-    return Container(
-      width: double.infinity,
-      height: 50,
-      child: ElevatedButton(
-        onPressed: _createTask,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Color(0xFFFF69B4),
-          shape: RoundedRectangleBorder(
+  Widget _buildCustomDropdown({required IconData icon, required String label, required Widget child}) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(icon, label),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
             borderRadius: BorderRadius.circular(12),
           ),
-          elevation: 0,
+          child: child,
         ),
-        child: Text(
-          'Buat Tugas',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+      ],
+    );
+  }
+
+  Widget _buildDateTimeChip(String text) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: theme.textTheme.bodyLarge?.color,
+          fontWeight: FontWeight.w500,
+          fontSize: 15,
         ),
       ),
     );
   }
 
-  void _showDateTimePicker() {
+  Widget _buildTimeRow(String label, DateTime date, TimeOfDay time, {VoidCallback? onTap}) {
+    final theme = Theme.of(context);
+    final dateTime = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: TextStyle(color: theme.hintColor, fontSize: 16)),
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Row(
+            children: [
+              _buildDateTimeChip(DateFormat('dd MMM yyyy').format(date)),
+              const SizedBox(width: 8),
+              _buildDateTimeChip(DateFormat('HH:mm').format(dateTime)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showAddCategoryDialog() {
+    final TextEditingController newCategoryController = TextEditingController();
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return DateTimePickerDialog(
-          initialStartDate: selectedStartDate,
-          initialEndDate: selectedEndDate,
-          initialStartTime: startTime,
-          initialEndTime: endTime,
-          onConfirm: (startDate, endDate, startTimeOfDay, endTimeOfDay) {
-            setState(() {
-              selectedStartDate = startDate;
-              selectedEndDate = endDate;
-              startTime = startTimeOfDay;
-              endTime = endTimeOfDay;
-            });
-          },
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Tambah Kategori Baru'),
+          content: TextField(
+            controller: newCategoryController,
+            autofocus: true,
+            decoration: const InputDecoration(hintText: 'Nama kategori'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final supabase = Supabase.instance.client;
+                final user = supabase.auth.currentUser;
+                final newCategory = newCategoryController.text.trim();
+
+                if (newCategory.isEmpty || user == null) return;
+
+                final alreadyExists = categories.any((cat) =>
+                    cat['name'].toString().toLowerCase() == newCategory.toLowerCase());
+
+                if (alreadyExists) {
+                  Navigator.pop(context);
+                  return;
+                }
+
+                final inserted = await supabase.from('categories').insert({
+                  'user_id': user.id,
+                  'category': newCategory,
+                  'is_global': false,
+                }).select().single();
+
+                setState(() {
+                  categories.add({
+                    'id': inserted['id'],
+                    'name': inserted['category'],
+                  });
+                  selectedCategory = inserted['id'];
+                });
+
+                Navigator.pop(context);
+              },
+              child: const Text('Tambah'),
+            ),
+          ],
         );
       },
     );
   }
 
-  void _createTask() {
-    if (_titleController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Judul tugas tidak boleh kosong'),
-          backgroundColor: Colors.red,
+  Future<void> _selectDate() async {
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DateTimePickerDialog(
+          initialStartDate: _tanggal,
+          initialEndDate: _endTanggal,
+          initialStartTime: _waktu,
+          initialEndTime: _endWaktu,
+
+          onConfirm: (DateTime startDate, TimeOfDay startTime, DateTime endDate, TimeOfDay endTime) {
+            final startDateTime = DateTime(startDate.year, startDate.month, startDate.day, startTime.hour, startTime.minute);
+            final endDateTime = DateTime(endDate.year, endDate.month, endDate.day, endTime.hour, endTime.minute);
+
+            if (endDateTime.isBefore(startDateTime)) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Waktu selesai tidak boleh mendahului waktu mulai.'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+              return; 
+            }
+            
+            setState(() {
+              _tanggal = startDate;
+              _waktu = startTime;
+              _endTanggal = endDate;
+              _endWaktu = endTime;
+            });
+          },
         ),
-      );
-      return;
-    }
-
-    // Buat object tugas baru
-    Map<String, dynamic> newTask = {
-      'title': _titleController.text,
-      'description': _descriptionController.text,
-      'category': selectedCategory,
-      'priority': selectedPriority,
-      'startDate': selectedStartDate,
-      'endDate': selectedEndDate,
-      'startTime': startTime,
-      'endTime': endTime,
-      'reminderEnabled': enableReminder,
-      'isCompleted': false,
-      'createdAt': DateTime.now(),
-    };
-
-    // Return data ke halaman sebelumnya
-    Navigator.pop(context, newTask);
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Tugas berhasil dibuat!'),
-        backgroundColor: Colors.green,
       ),
     );
   }
 
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
+  Future<void> _simpanTugas() async {
+    final supabase = Supabase.instance.client;
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    final uuid = const Uuid().v4();
+    final now = DateTime.now();
+    final int priorityValue = _prioritas == 'Tinggi'
+        ? 3
+        : _prioritas == 'Sedang'
+            ? 2
+            : 1;
+
+    final taskData = {
+      'id': uuid,
+      'user_id': user.id,
+      'title': _judulController.text.trim(),
+      'description': _deskripsiController.text.trim(),
+      'start_date': DateFormat('yyyy-MM-dd').format(_tanggal),
+      'start_time': _formatTimeOfDay(_waktu),
+      'end_date': DateFormat('yyyy-MM-dd').format(_endTanggal),
+      'end_time': _formatTimeOfDay(_endWaktu),
+      'created_at': now.toIso8601String(),
+      'updated_at': null,
+      'category_id': selectedCategory,
+      'is_completed': false,
+      'priority': priorityValue,
+    };
+
+    try {
+      await supabase.from('task').insert(taskData);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tugas berhasil disimpan')),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menyimpan tugas: $e')),
+      );
+    }
   }
+}
+
+String _formatTimeOfDay(TimeOfDay time) {
+  final now = DateTime.now();
+  final dt = DateTime(now.year, now.month, now.day, time.hour, time.minute);
+  return DateFormat('HH:mm:ss').format(dt);
 }
