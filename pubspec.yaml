@@ -95,6 +95,8 @@ flutter:
       - assets/images/listifylogo.png
       - assets/images/google.png
       - assets/sounds/timercountdown.mp3
+      - assets/images/logolisti.png
+      - assets/images/teks.png
 
 
   # An image asset can refer to one or more resolution-specific "variants", see

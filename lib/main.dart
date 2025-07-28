@@ -7,6 +7,7 @@ import 'package:cblistify/tema/theme_notifier.dart';
 import 'package:cblistify/database/utils/constants.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:cblistify/splashscreen.dart';
 
 
 void main() async {
@@ -38,7 +39,7 @@ class MyApp extends StatelessWidget {
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: const LoginPage(),
+      home: const SplashScreen(),
       theme: ThemeData(
         scaffoldBackgroundColor: palette.lighter,
         appBarTheme: AppBarTheme(
